@@ -14,7 +14,6 @@ export interface MatchScoreInputProps {
   players: Player[];
   initialScores?: Record<string, { rank: number; magic: number; score: number }>;
   onSave: (scores: Record<string, { rank: number; magic: number; score: number }>) => void;
-  // 追加: マップ名や目標魔力が変更された時のコールバック
   onUpdateSettings?: (mapName: string, targetMagic: number) => void;
 }
 
@@ -30,17 +29,14 @@ export default function MatchScoreInput({
   const [ranks, setRanks] = useState<Record<string, number>>({});
   const [magics, setMagics] = useState<Record<string, number>>({});
 
-  // 編集可能なローカルステート（マップ名、目標魔力）
   const [currentMapName, setCurrentMapName] = useState(mapName);
   const [currentTargetMagic, setCurrentTargetMagic] = useState(targetMagic);
 
-  // プロパティが変更されたらローカルステートも同期
   useEffect(() => {
     setCurrentMapName(mapName);
     setCurrentTargetMagic(targetMagic);
   }, [mapName, targetMagic]);
 
-  // 初期化・保存済みデータの復元
   useEffect(() => {
     if (initialScores) {
       const loadedRanks: Record<string, number> = {};
@@ -61,7 +57,6 @@ export default function MatchScoreInput({
     }
   }, [initialScores, players, targetMagic]);
 
-  // 設定変更時に親へ通知
   const handleMapNameChange = (newName: string) => {
     setCurrentMapName(newName);
     if (onUpdateSettings) {
@@ -76,33 +71,17 @@ export default function MatchScoreInput({
     }
   };
 
+  // 同率を許可するため、他人の順位を消さずに各自独立して順位を選べるように変更
   const handleRankClick = (userId: string, rank: number) => {
-    const newRanks = { ...ranks };
-
-    Object.keys(newRanks).forEach((id) => {
-      if (newRanks[id] === rank) {
-        delete newRanks[id];
+    setRanks((prev) => {
+      const newRanks = { ...prev };
+      if (newRanks[userId] === rank) {
+        delete newRanks[userId];
+      } else {
+        newRanks[userId] = rank;
       }
+      return newRanks;
     });
-
-    if (newRanks[userId] === rank) {
-      delete newRanks[userId];
-    } else {
-      newRanks[userId] = rank;
-    }
-
-    const assignedUserIds = Object.keys(newRanks);
-    if (assignedUserIds.length === 3 && players.length === 4) {
-      const unassignedUser = players.find((p) => !newRanks[p.userId] && p.userId !== userId);
-      const usedRanks = Object.values(newRanks);
-      const remainingRank = [1, 2, 3, 4].find((r) => !usedRanks.includes(r));
-
-      if (unassignedUser && remainingRank) {
-        newRanks[unassignedUser.userId] = remainingRank;
-      }
-    }
-
-    setRanks(newRanks);
   };
 
   const handleMagicChange = (userId: string, delta: number) => {
@@ -120,13 +99,12 @@ export default function MatchScoreInput({
     }));
   };
 
-const handleSaveClick = () => {
+  const handleSaveClick = () => {
     if (Object.keys(ranks).length < players.length) {
       alert('全員の順位が決まっていません！');
       return;
     }
 
-    // 現在の卓の参加人数
     const matchPlayerCount = players.length;
 
     const resultData: Record<string, { rank: number; magic: number; score: number }> = {};
@@ -134,7 +112,6 @@ const handleSaveClick = () => {
       const rank = ranks[p.userId] || players.length;
       const magic = magics[p.userId] ?? currentTargetMagic;
 
-      // 順位と人数に応じた勝ち点（score）を計算
       let points = 0;
       if (matchPlayerCount === 4) {
         if (rank === 1) points = 6;
@@ -150,7 +127,6 @@ const handleSaveClick = () => {
         else if (rank === 2) points = 0;
       }
 
-      // 総合順位のタイブレーク用に魔力も考慮しつつ、scoreに勝ち点を格納
       resultData[p.userId] = { rank, magic, score: points };
     });
 
@@ -159,7 +135,6 @@ const handleSaveClick = () => {
 
   return (
     <div className="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl text-slate-100">
-      {/* ヘッダー情報：マップ名と目標魔力を変更可能に */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
         <div className="flex items-center gap-3 w-full md:w-auto">
           <span className="bg-indigo-600 text-white text-xs px-3 py-1 rounded-full font-semibold shrink-0">
@@ -190,7 +165,6 @@ const handleSaveClick = () => {
         </div>
       </div>
 
-      {/* プレイヤー一覧テーブル・カード */}
       <div className="space-y-4">
         {players.map((player) => {
           const currentRank = ranks[player.userId];
