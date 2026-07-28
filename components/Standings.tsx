@@ -37,33 +37,16 @@ matchResults.forEach(match => {
     if (!scores) return;
 
     const participantIds = Object.keys(scores);
-    // その卓の参加人数
-    const matchPlayerCount = participantIds.length;
 
     participantIds.forEach(userId => {
       const data = scores[userId];
       if (statsMap[userId]) {
         statsMap[userId].matchesPlayed += 1;
+        // MatchScoreInputで計算されたポイント（score）をそのまま足す
         statsMap[userId].totalScore += Number(data.score) || 0;
+        statsMap[userId].points += Number(data.score) || 0; 
         statsMap[userId].totalMagic += Number(data.magic) || 0;
         
-        const rank = Number(data.rank);
-
-        // 人数と順位に応じたポイント加算
-        if (matchPlayerCount === 4) {
-          if (rank === 1) statsMap[userId].points += 6;
-          else if (rank === 2) statsMap[userId].points += 4;
-          else if (rank === 3) statsMap[userId].points += 2;
-          else if (rank === 4) statsMap[userId].points += 0;
-        } else if (matchPlayerCount === 3) {
-          if (rank === 1) statsMap[userId].points += 6;
-          else if (rank === 2) statsMap[userId].points += 3;
-          else if (rank === 3) statsMap[userId].points += 0;
-        } else if (matchPlayerCount === 2) {
-          if (rank === 1) statsMap[userId].points += 6;
-          else if (rank === 2) statsMap[userId].points += 0;
-        }
-
         participantIds.forEach(oppId => {
           if (oppId !== userId) {
             statsMap[userId].opponentIds.push(oppId);
