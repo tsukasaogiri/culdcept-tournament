@@ -159,7 +159,6 @@ export default function Home() {
     return null;
   }
 
-  // 指定ラウンドの卓組みを生成（参加するプレイヤーのみで構成）
   const generateSwissTables = (roundNum: number, participantIds: string[]) => {
     const activePlayers = players.filter(p => participantIds.includes(p.id));
 
@@ -241,7 +240,6 @@ export default function Home() {
       });
     }
 
-    // このラウンドの参加者を保存
     setRoundParticipants(prev => ({ ...prev, [roundNum]: participantIds }));
     setTables(newTables);
     setCurrentRound(roundNum);
@@ -261,19 +259,14 @@ export default function Home() {
     setMatchResults([]);
     setRoundHistories([]);
     setRoundParticipants({});
-    // 初期状態は全プレイヤーをラウンド1に参加させる
     const allIds = players.map(p => p.id);
     generateSwissTables(1, allIds);
     setStep('play'); 
   };
 
-  // 次のラウンドに進むボタンを押したとき、まずメンバー確認モーダルを開く
   const handleOpenParticipantModal = (nextRoundNum: number) => {
     setPendingNextRound(nextRoundNum);
-    // 直前のラウンドの参加者を引き継ぐ（新規追加されたプレイヤーも含められるように全員分をデフォルトにするか、前回のメンバーを引き継ぐ）
-    const previousParticipants = roundParticipants[nextRoundNum - 1] || players.map(p => p.id);
-    // 今いる全プレイヤーの中で、前回参加していた人＋新しく増えた人を反映
-    setSelectedParticipantIds(players.map(p => p.id)); // デフォルトで全員チェック（途中で追加された人も含めて自由に変更可能）
+    setSelectedParticipantIds(players.map(p => p.id));
     setIsParticipantModalOpen(true);
   };
 
@@ -344,7 +337,7 @@ export default function Home() {
           <div>
             <h1 className="text-2xl font-bold">カルドセプト 大会スコア入力ツール</h1>
             <p className="text-sm text-slate-400">
-              {step === 'register' ? 'モード: プレイヤー登録' : `現在: ラウンド ${currentRound} 進行中`}
+              {step === 'register' ? 'モード: プレイヤー登録・管理' : `現在: ラウンド ${currentRound} 進行中`}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -372,15 +365,26 @@ export default function Home() {
               📁 ファイルから復元
             </Button>
 
-            {step === 'play' && (
+            {step === 'play' ? (
               <Button
                 variant="outline"
                 onClick={() => setStep('register')}
                 className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 text-xs"
               >
-                ← 登録に戻る
+                ＋ プレイヤー追加・管理
               </Button>
+            ) : (
+              matchResults.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => setStep('play')}
+                  className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 text-xs"
+                >
+                  ← 大会画面に戻る
+                </Button>
+              )
             )}
+
             <Button
               variant="destructive"
               onClick={handleResetAll}
@@ -392,11 +396,24 @@ export default function Home() {
         </header>
 
         {step === 'register' ? (
-          <PlayerManager
-            players={players}
-            onUpdatePlayers={setPlayers}
-            onStartTournament={handleStartTournament}
-          />
+          <div className="space-y-6">
+            <PlayerManager
+              players={players}
+              onUpdatePlayers={setPlayers}
+              onStartTournament={handleStartTournament}
+            />
+            {matchResults.length > 0 && (
+              <div className="bg-slate-900 p-4 rounded-lg border border-slate-800 text-center">
+                <p className="text-xs text-slate-400 mb-3">すでに大会が進行中です。プレイヤーの追加・編集が終わったらこちらから戻れます。</p>
+                <Button
+                  onClick={() => setStep('play')}
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-6 py-2"
+                >
+                  ← 大会画面に戻る
+                </Button>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="space-y-8">
             
@@ -476,7 +493,7 @@ export default function Home() {
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl text-slate-100">
               <h3 className="text-lg font-bold">ラウンド {pendingNextRound} の参加メンバー確認</h3>
               <p className="text-xs text-slate-400">
-                このラウンドに参加するプレイヤーにチェックを入れてください。新規で飛び入りした人は「登録に戻る」から事前にプレイヤー追加しておくとここに表示されます。
+                このラウンドに参加するプレイヤーにチェックを入れてください。新規で飛び入りした人は上の「プレイヤー追加・管理」から追加しておくとここに表示されます。
               </p>
 
               <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
