@@ -26,13 +26,8 @@ export default function Standings({ players, matchResults }: StandingsProps) {
     };
   });
 
+  // 1つの正しいループで集計する
   matchResults.forEach(match => {
-    const scores = match.scores;
-    if (!scores) return;
-
-    const participantIds = Object.keys(scores);
-
-matchResults.forEach(match => {
     const scores = match.scores;
     if (!scores) return;
 
@@ -53,7 +48,6 @@ matchResults.forEach(match => {
         });
       }
     });
-  });
   });
 
   const winRateMap: { [userId: string]: number } = {};
