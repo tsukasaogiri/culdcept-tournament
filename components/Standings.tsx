@@ -42,7 +42,6 @@ matchResults.forEach(match => {
       const data = scores[userId];
       if (statsMap[userId]) {
         statsMap[userId].matchesPlayed += 1;
-        // MatchScoreInputで計算されたポイント（score）をそのまま足す
         statsMap[userId].totalScore += Number(data.score) || 0;
         statsMap[userId].points += Number(data.score) || 0; 
         statsMap[userId].totalMagic += Number(data.magic) || 0;
