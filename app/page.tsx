@@ -155,14 +155,29 @@ export default function Home() {
     matchResults.forEach(match => {
       const scores = match.scores;
       if (!scores) return;
+      
+      // その卓に何人プレイヤーがいたかを数える（スコアが入力されている人数）
+      const matchPlayerCount = Object.keys(scores).length;
+
       Object.entries(scores).forEach(([userId, data]: [string, any]) => {
         if (statsMap[userId]) {
           statsMap[userId].totalScore += Number(data.score) || 0;
-          const rank = Number(data.rank);
-          if (rank === 1) statsMap[userId].points += 4;
-          else if (rank === 2) statsMap[userId].points += 3;
-          else if (rank === 3) statsMap[userId].points += 2;
-          else statsMap[userId].points += 1;
+          const rank = Number(data.rank); // 1, 2, 3, 4...
+
+          // 人数と順位に応じたポイント加算
+          if (matchPlayerCount === 4) {
+            if (rank === 1) statsMap[userId].points += 6;
+            else if (rank === 2) statsMap[userId].points += 4;
+            else if (rank === 3) statsMap[userId].points += 2;
+            else if (rank === 4) statsMap[userId].points += 0;
+          } else if (matchPlayerCount === 3) {
+            if (rank === 1) statsMap[userId].points += 6;
+            else if (rank === 2) statsMap[userId].points += 3;
+            else if (rank === 3) statsMap[userId].points += 0;
+          } else if (matchPlayerCount === 2) {
+            if (rank === 1) statsMap[userId].points += 6;
+            else if (rank === 2) statsMap[userId].points += 0;
+          }
         }
       });
     });
