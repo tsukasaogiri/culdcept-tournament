@@ -247,16 +247,20 @@ export default function Home() {
     setStep('play'); 
   };
 
-  const handleSaveTableScores = (tableNumber: number, scores: any) => {
+const handleSaveTableScores = (tableNumber: number, scores: any) => {
     setMatchResults(prev => {
+      // 既に同じラウンド・同じ卓の結果が存在するかチェック
       const existingIndex = prev.findIndex(
         item => item.round === viewingRound && item.tableNumber === tableNumber
       );
+
       if (existingIndex >= 0) {
+        // 存在する場合は、重複させずに中身を新しいスコアに「上書き」する
         const updated = [...prev];
         updated[existingIndex] = { round: viewingRound, tableNumber, scores };
         return updated;
       } else {
+        // 存在しない場合のみ新規追加する
         return [...prev, { round: viewingRound, tableNumber, scores }];
       }
     });
