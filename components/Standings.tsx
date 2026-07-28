@@ -32,6 +32,14 @@ export default function Standings({ players, matchResults }: StandingsProps) {
 
     const participantIds = Object.keys(scores);
 
+matchResults.forEach(match => {
+    const scores = match.scores;
+    if (!scores) return;
+
+    const participantIds = Object.keys(scores);
+    // その卓の参加人数
+    const matchPlayerCount = participantIds.length;
+
     participantIds.forEach(userId => {
       const data = scores[userId];
       if (statsMap[userId]) {
@@ -40,10 +48,21 @@ export default function Standings({ players, matchResults }: StandingsProps) {
         statsMap[userId].totalMagic += Number(data.magic) || 0;
         
         const rank = Number(data.rank);
-        if (rank === 1) statsMap[userId].points += 4;
-        else if (rank === 2) statsMap[userId].points += 3;
-        else if (rank === 3) statsMap[userId].points += 2;
-        else statsMap[userId].points += 1;
+
+        // 人数と順位に応じたポイント加算
+        if (matchPlayerCount === 4) {
+          if (rank === 1) statsMap[userId].points += 6;
+          else if (rank === 2) statsMap[userId].points += 4;
+          else if (rank === 3) statsMap[userId].points += 2;
+          else if (rank === 4) statsMap[userId].points += 0;
+        } else if (matchPlayerCount === 3) {
+          if (rank === 1) statsMap[userId].points += 6;
+          else if (rank === 2) statsMap[userId].points += 3;
+          else if (rank === 3) statsMap[userId].points += 0;
+        } else if (matchPlayerCount === 2) {
+          if (rank === 1) statsMap[userId].points += 6;
+          else if (rank === 2) statsMap[userId].points += 0;
+        }
 
         participantIds.forEach(oppId => {
           if (oppId !== userId) {
@@ -52,6 +71,7 @@ export default function Standings({ players, matchResults }: StandingsProps) {
         });
       }
     });
+  });
   });
 
   const winRateMap: { [userId: string]: number } = {};
