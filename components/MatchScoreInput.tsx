@@ -120,19 +120,38 @@ export default function MatchScoreInput({
     }));
   };
 
-  const handleSaveClick = () => {
+const handleSaveClick = () => {
     if (Object.keys(ranks).length < players.length) {
       alert('全員の順位が決まっていません！');
       return;
     }
 
+    // 現在の卓の参加人数
+    const matchPlayerCount = players.length;
+
     const resultData: Record<string, { rank: number; magic: number; score: number }> = {};
     players.forEach((p) => {
-      const rank = ranks[p.userId] || 4;
+      const rank = ranks[p.userId] || players.length;
       const magic = magics[p.userId] ?? currentTargetMagic;
-      const score = (5 - rank) * 1000 + magic;
 
-      resultData[p.userId] = { rank, magic, score };
+      // 順位と人数に応じた勝ち点（score）を計算
+      let points = 0;
+      if (matchPlayerCount === 4) {
+        if (rank === 1) points = 6;
+        else if (rank === 2) points = 4;
+        else if (rank === 3) points = 2;
+        else if (rank === 4) points = 0;
+      } else if (matchPlayerCount === 3) {
+        if (rank === 1) points = 6;
+        else if (rank === 2) points = 3;
+        else if (rank === 3) points = 0;
+      } else if (matchPlayerCount === 2) {
+        if (rank === 1) points = 6;
+        else if (rank === 2) points = 0;
+      }
+
+      // 総合順位のタイブレーク用に魔力も考慮しつつ、scoreに勝ち点を格納
+      resultData[p.userId] = { rank, magic, score: points };
     });
 
     onSave(resultData);
