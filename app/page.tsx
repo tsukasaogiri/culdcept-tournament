@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 
 interface TableData {
   tableNumber: number;
-  mapName?: string;     // 追加
-  targetMagic?: number; // 追加
+  mapName?: string;
+  targetMagic?: number;
   players: { userId: string; name: string; score: string; totalMagic: string }[];
 }
 
@@ -42,6 +42,14 @@ export default function Home() {
   const [roundHistories, setRoundHistories] = useState<RoundHistory[]>([]);
   const [viewingRound, setViewingRound] = useState<number>(1);
 
+  // 飛び入り参加・途中離脱用：ラウンドごとの参加メンバーIDの記録
+  const [roundParticipants, setRoundParticipants] = useState<Record<number, string[]>>({});
+
+  // ラウンド開始前のメンバー確認モーダル用
+  const [isParticipantModalOpen, setIsParticipantModalOpen] = useState(false);
+  const [pendingNextRound, setPendingNextRound] = useState<number>(1);
+  const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
+
   useEffect(() => {
     setIsMounted(true);
     const savedStep = localStorage.getItem('catan_step');
@@ -51,6 +59,7 @@ export default function Home() {
     const savedResults = localStorage.getItem('catan_results');
     const savedHistories = localStorage.getItem('catan_histories');
     const savedViewingRound = localStorage.getItem('catan_viewing_round');
+    const savedParticipants = localStorage.getItem('culdcept_round_participants');
 
     if (savedStep) setStep(savedStep as 'register' | 'play');
     if (savedPlayers) setPlayers(JSON.parse(savedPlayers));
@@ -67,6 +76,7 @@ export default function Home() {
       setRoundHistories([{ round: Number(savedRound), tables: JSON.parse(savedTables) }]);
     }
     if (savedViewingRound) setViewingRound(Number(savedViewingRound));
+    if (savedParticipants) setRoundParticipants(JSON.parse(savedParticipants));
   }, []);
 
   useEffect(() => {
@@ -78,7 +88,8 @@ export default function Home() {
     localStorage.setItem('catan_results', JSON.stringify(matchResults));
     localStorage.setItem('catan_histories', JSON.stringify(roundHistories));
     localStorage.setItem('catan_viewing_round', String(viewingRound));
-  }, [isMounted, step, players, tables, currentRound, matchResults, roundHistories, viewingRound]);
+    localStorage.setItem('culdcept_round_participants', JSON.stringify(roundParticipants));
+  }, [isMounted, step, players, tables, currentRound, matchResults, roundHistories, viewingRound, roundParticipants]);
 
   const handleExportData = () => {
     const tournamentData = {
@@ -89,7 +100,8 @@ export default function Home() {
       matchResults,
       roundHistories,
       viewingRound,
-      version: 3,
+      roundParticipants,
+      version: 4,
       updatedAt: new Date().toISOString(),
     };
 
@@ -126,6 +138,7 @@ export default function Home() {
           if (data.matchResults) setMatchResults(data.matchResults);
           if (data.roundHistories) setRoundHistories(data.roundHistories);
           if (data.viewingRound) setViewingRound(data.viewingRound);
+          if (data.roundParticipants) setRoundParticipants(data.roundParticipants);
 
           alert('大会データを正常に復元しました！');
         } else {
@@ -146,9 +159,12 @@ export default function Home() {
     return null;
   }
 
-  const generateSwissTables = (roundNum: number) => {
+  // 指定ラウンドの卓組みを生成（参加するプレイヤーのみで構成）
+  const generateSwissTables = (roundNum: number, participantIds: string[]) => {
+    const activePlayers = players.filter(p => participantIds.includes(p.id));
+
     const statsMap: { [userId: string]: { id: string; name: string; points: number; totalScore: number } } = {};
-    players.forEach(p => {
+    activePlayers.forEach(p => {
       statsMap[p.id] = { id: p.id, name: p.name, points: 0, totalScore: 0 };
     });
 
@@ -156,15 +172,13 @@ export default function Home() {
       const scores = match.scores;
       if (!scores) return;
       
-      // その卓に何人プレイヤーがいたかを数える（スコアが入力されている人数）
       const matchPlayerCount = Object.keys(scores).length;
 
       Object.entries(scores).forEach(([userId, data]: [string, any]) => {
         if (statsMap[userId]) {
           statsMap[userId].totalScore += Number(data.score) || 0;
-          const rank = Number(data.rank); // 1, 2, 3, 4...
+          const rank = Number(data.rank);
 
-          // 人数と順位に応じたポイント加算
           if (matchPlayerCount === 4) {
             if (rank === 1) statsMap[userId].points += 6;
             else if (rank === 2) statsMap[userId].points += 4;
@@ -182,13 +196,14 @@ export default function Home() {
       });
     });
 
-    let sortedPlayers = [...players];
+    let sortedPlayers = [...activePlayers];
     if (roundNum === 1) {
       sortedPlayers.sort(() => Math.random() - 0.5);
     } else {
       sortedPlayers.sort((a, b) => {
         const statA = statsMap[a.id];
         const statB = statsMap[b.id];
+        if (!statA || !statB) return 0;
         if (statB.points !== statA.points) {
           return statB.points - statA.points;
         }
@@ -226,6 +241,8 @@ export default function Home() {
       });
     }
 
+    // このラウンドの参加者を保存
+    setRoundParticipants(prev => ({ ...prev, [roundNum]: participantIds }));
     setTables(newTables);
     setCurrentRound(roundNum);
     setViewingRound(roundNum);
@@ -243,24 +260,44 @@ export default function Home() {
   const handleStartTournament = () => {
     setMatchResults([]);
     setRoundHistories([]);
-    generateSwissTables(1);
+    setRoundParticipants({});
+    // 初期状態は全プレイヤーをラウンド1に参加させる
+    const allIds = players.map(p => p.id);
+    generateSwissTables(1, allIds);
     setStep('play'); 
   };
 
-const handleSaveTableScores = (tableNumber: number, scores: any) => {
+  // 次のラウンドに進むボタンを押したとき、まずメンバー確認モーダルを開く
+  const handleOpenParticipantModal = (nextRoundNum: number) => {
+    setPendingNextRound(nextRoundNum);
+    // 直前のラウンドの参加者を引き継ぐ（新規追加されたプレイヤーも含められるように全員分をデフォルトにするか、前回のメンバーを引き継ぐ）
+    const previousParticipants = roundParticipants[nextRoundNum - 1] || players.map(p => p.id);
+    // 今いる全プレイヤーの中で、前回参加していた人＋新しく増えた人を反映
+    setSelectedParticipantIds(players.map(p => p.id)); // デフォルトで全員チェック（途中で追加された人も含めて自由に変更可能）
+    setIsParticipantModalOpen(true);
+  };
+
+  const handleConfirmNextRound = () => {
+    if (selectedParticipantIds.length === 0) {
+      alert('参加者が1人も選択されていません！');
+      return;
+    }
+    generateSwissTables(pendingNextRound, selectedParticipantIds);
+    setIsParticipantModalOpen(false);
+    alert(`成績に基づいてラウンド ${pendingNextRound} のスイスドロー卓組みを作成しました！`);
+  };
+
+  const handleSaveTableScores = (tableNumber: number, scores: any) => {
     setMatchResults(prev => {
-      // 既に同じラウンド・同じ卓の結果が存在するかチェック
       const existingIndex = prev.findIndex(
         item => item.round === viewingRound && item.tableNumber === tableNumber
       );
 
       if (existingIndex >= 0) {
-        // 存在する場合は、重複させずに中身を新しいスコアに「上書き」する
         const updated = [...prev];
         updated[existingIndex] = { round: viewingRound, tableNumber, scores };
         return updated;
       } else {
-        // 存在しない場合のみ新規追加する
         return [...prev, { round: viewingRound, tableNumber, scores }];
       }
     });
@@ -268,7 +305,6 @@ const handleSaveTableScores = (tableNumber: number, scores: any) => {
     alert(`第${tableNumber}卓（ラウンド ${viewingRound}）のスコアを保存しました！`);
   };
 
-  // 各卓のマップ名・目標魔力が変更された時に履歴を更新するハンドラ
   const handleUpdateTableSettings = (tableNumber: number, newMapName: string, newTargetMagic: number) => {
     const updateTablesList = (list: TableData[]) =>
       list.map(t => t.tableNumber === tableNumber ? { ...t, mapName: newMapName, targetMagic: newTargetMagic } : t);
@@ -282,7 +318,6 @@ const handleSaveTableScores = (tableNumber: number, scores: any) => {
     );
   };
 
-  // 閲覧中のラウンドの卓一覧を取得（履歴を優先、なければ現在のtables）
   const viewingTables = roundHistories.find(h => h.round === viewingRound)?.tables || (viewingRound === currentRound ? tables : []);
   const viewingRoundResultsCount = matchResults.filter(item => item.round === viewingRound).length;
   const isViewingRoundFinished = viewingRoundResultsCount === viewingTables.length && viewingTables.length > 0;
@@ -295,6 +330,7 @@ const handleSaveTableScores = (tableNumber: number, scores: any) => {
       setCurrentRound(1);
       setMatchResults([]);
       setRoundHistories([]);
+      setRoundParticipants({});
       setViewingRound(1);
       window.location.reload();
     }
@@ -421,11 +457,7 @@ const handleSaveTableScores = (tableNumber: number, scores: any) => {
               <div className="bg-slate-900 p-6 rounded-lg border border-slate-800 text-center space-y-4">
                 <h3 className="text-lg font-bold text-green-400">ラウンド {currentRound} の全卓が入力されました！</h3>
                 <Button
-                  onClick={() => {
-                    const nextRoundNum = currentRound + 1;
-                    generateSwissTables(nextRoundNum);
-                    alert(`成績に基づいてラウンド ${nextRoundNum} のスイスドロー卓組みを作成しました！`);
-                  }}
+                  onClick={() => handleOpenParticipantModal(currentRound + 1)}
                   className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-2"
                 >
                   ラウンド {currentRound + 1} の卓組みを作成して次へ進む →
@@ -435,6 +467,60 @@ const handleSaveTableScores = (tableNumber: number, scores: any) => {
 
             <Standings players={players} matchResults={matchResults} />
 
+          </div>
+        )}
+
+        {/* 参加メンバー確認モーダル（飛び入り参加・途中離脱の調整用） */}
+        {isParticipantModalOpen && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl text-slate-100">
+              <h3 className="text-lg font-bold">ラウンド {pendingNextRound} の参加メンバー確認</h3>
+              <p className="text-xs text-slate-400">
+                このラウンドに参加するプレイヤーにチェックを入れてください。新規で飛び入りした人は「登録に戻る」から事前にプレイヤー追加しておくとここに表示されます。
+              </p>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                {players.map(p => {
+                  const isChecked = selectedParticipantIds.includes(p.id);
+                  return (
+                    <label
+                      key={p.id}
+                      className="flex items-center justify-between p-3 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 rounded-lg cursor-pointer"
+                    >
+                      <span className="font-medium text-slate-200">{p.name}</span>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedParticipantIds(prev => [...prev, p.id]);
+                          } else {
+                            setSelectedParticipantIds(prev => prev.filter(id => id !== p.id));
+                          }
+                        }}
+                        className="w-4 h-4 accent-indigo-600 rounded"
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsParticipantModalOpen(false)}
+                  className="border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs"
+                >
+                  キャンセル
+                </Button>
+                <Button
+                  onClick={handleConfirmNextRound}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4"
+                >
+                  このメンバーで卓組みを作る
+                </Button>
+              </div>
+            </div>
           </div>
         )}
 
