@@ -71,7 +71,7 @@ export default function MatchScoreInput({
     }
   };
 
-  // 同率を許可するため、他人の順位を消さずに各自独立して順位を選べるように変更
+  // 同率を許可するため、他人の順位を消さずに各自独立して順位を選べる仕様
   const handleRankClick = (userId: string, rank: number) => {
     setRanks((prev) => {
       const newRanks = { ...prev };
@@ -205,20 +205,35 @@ export default function MatchScoreInput({
                 })}
               </div>
 
-              <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+              {/* 魔力調整ボタン群（-1000, -100, -10, -1 / +1, +10, +100, +1000） */}
+              <div className="flex items-center gap-1.5 flex-wrap justify-end">
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, -1000)}
-                  className="px-2.5 py-1.5 bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-300 rounded text-xs font-semibold"
+                  className="px-2 py-1.5 bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-300 rounded text-xs font-semibold"
                 >
                   -1000
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleMagicChange(player.userId, -500)}
+                  onClick={() => handleMagicChange(player.userId, -100)}
+                  className="px-2 py-1.5 bg-red-950/50 hover:bg-red-900 border border-red-800 text-red-300 rounded text-xs"
+                >
+                  -100
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMagicChange(player.userId, -10)}
                   className="px-2 py-1.5 bg-red-950/40 hover:bg-red-900 border border-red-900 text-red-400 rounded text-xs"
                 >
-                  -500
+                  -10
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMagicChange(player.userId, -1)}
+                  className="px-1.5 py-1.5 bg-red-950/30 hover:bg-red-900 border border-red-950 text-red-400 rounded text-xs"
+                >
+                  -1
                 </button>
 
                 <input
@@ -231,15 +246,29 @@ export default function MatchScoreInput({
 
                 <button
                   type="button"
-                  onClick={() => handleMagicChange(player.userId, 500)}
+                  onClick={() => handleMagicChange(player.userId, 1)}
+                  className="px-1.5 py-1.5 bg-emerald-950/30 hover:bg-emerald-900 border border-emerald-950 text-emerald-400 rounded text-xs"
+                >
+                  +1
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMagicChange(player.userId, 10)}
                   className="px-2 py-1.5 bg-emerald-950/40 hover:bg-emerald-900 border border-emerald-900 text-emerald-400 rounded text-xs"
                 >
-                  +500
+                  +10
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMagicChange(player.userId, 100)}
+                  className="px-2 py-1.5 bg-emerald-950/50 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded text-xs"
+                >
+                  +100
                 </button>
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, 1000)}
-                  className="px-2.5 py-1.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded text-xs font-semibold"
+                  className="px-2 py-1.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded text-xs font-semibold"
                 >
                   +1000
                 </button>
