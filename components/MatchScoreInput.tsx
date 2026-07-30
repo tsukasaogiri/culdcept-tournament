@@ -133,7 +133,7 @@ export default function MatchScoreInput({
   };
 
   return (
-    <div className="w-full max-w-6xl bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl text-slate-100">
+    <div className="w-full max-w-7xl bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl text-slate-100 mx-auto">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
         <div className="flex items-center gap-3 w-full md:w-auto">
           <span className="bg-indigo-600 text-white text-xs px-3 py-1 rounded-full font-semibold shrink-0">
@@ -174,11 +174,11 @@ export default function MatchScoreInput({
               key={player.userId}
               className="bg-slate-800/60 border border-slate-700/60 rounded-lg p-4 flex flex-col xl:flex-row items-center justify-between gap-4"
             >
-              <div className="w-full xl:w-1/4 font-medium text-lg text-indigo-200 truncate text-center xl:text-left">
+              <div className="w-full xl:w-1/5 font-medium text-lg text-indigo-200 truncate text-center xl:text-left">
                 {player.name}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 {[1, 2, 3, 4].map((rankNum) => {
                   const isSelected = currentRank === rankNum;
                   return (
@@ -204,33 +204,33 @@ export default function MatchScoreInput({
                 })}
               </div>
 
-              {/* 魔力調整ボタン群（完全に1行に収まるように調整） */}
-              <div className="flex items-center gap-1 flex-nowrap justify-center xl:justify-end">
+              {/* 魔力調整ボタン群（十分な幅を持たせて1行に確実に収める） */}
+              <div className="flex items-center gap-1.5 flex-nowrap justify-center xl:justify-end w-full xl:w-auto">
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, -1000)}
-                  className="px-1.5 py-1.5 bg-red-950/70 hover:bg-red-900 border border-red-800 text-red-300 rounded text-[11px] font-semibold shrink-0"
+                  className="px-2 py-1.5 bg-red-950/70 hover:bg-red-900 border border-red-800 text-red-300 rounded text-xs font-semibold shrink-0"
                 >
                   -1000
                 </button>
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, -100)}
-                  className="px-1.5 py-1.5 bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-300 rounded text-[11px] shrink-0"
+                  className="px-2 py-1.5 bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-300 rounded text-xs shrink-0"
                 >
                   -100
                 </button>
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, -10)}
-                  className="px-1.5 py-1.5 bg-red-950/50 hover:bg-red-900 border border-red-900 text-red-400 rounded text-[11px] shrink-0"
+                  className="px-2 py-1.5 bg-red-950/50 hover:bg-red-900 border border-red-900 text-red-400 rounded text-xs shrink-0"
                 >
                   -10
                 </button>
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, -1)}
-                  className="px-1.5 py-1.5 bg-red-950/40 hover:bg-red-900 border border-red-950 text-red-400 rounded text-[11px] shrink-0"
+                  className="px-2 py-1.5 bg-red-950/40 hover:bg-red-900 border border-red-950 text-red-400 rounded text-xs shrink-0"
                 >
                   -1
                 </button>
@@ -240,7 +240,7 @@ export default function MatchScoreInput({
                     type="number"
                     value={currentMagic}
                     onChange={(e) => handleMagicInput(player.userId, e.target.value)}
-                    className="w-24 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-right font-mono text-amber-300 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                    className="w-28 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-right font-mono text-amber-300 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                   />
                   <span className="text-xs text-slate-400">G</span>
                 </div>
@@ -248,28 +248,28 @@ export default function MatchScoreInput({
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, 1)}
-                  className="px-1.5 py-1.5 bg-emerald-950/40 hover:bg-emerald-900 border border-emerald-950 text-emerald-400 rounded text-[11px] shrink-0"
+                  className="px-2 py-1.5 bg-emerald-950/40 hover:bg-emerald-900 border border-emerald-950 text-emerald-400 rounded text-xs shrink-0"
                 >
                   +1
                 </button>
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, 10)}
-                  className="px-1.5 py-1.5 bg-emerald-950/50 hover:bg-emerald-900 border border-emerald-900 text-emerald-400 rounded text-[11px] shrink-0"
+                  className="px-2 py-1.5 bg-emerald-950/50 hover:bg-emerald-900 border border-emerald-900 text-emerald-400 rounded text-xs shrink-0"
                 >
                   +10
                 </button>
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, 100)}
-                  className="px-1.5 py-1.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded text-[11px] shrink-0"
+                  className="px-2 py-1.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded text-xs shrink-0"
                 >
                   +100
                 </button>
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, 1000)}
-                  className="px-1.5 py-1.5 bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded text-[11px] font-semibold shrink-0"
+                  className="px-2 py-1.5 bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded text-xs font-semibold shrink-0"
                 >
                   +1000
                 </button>
