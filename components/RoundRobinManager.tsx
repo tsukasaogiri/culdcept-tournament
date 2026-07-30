@@ -302,10 +302,25 @@ export default function RoundRobinManager({ players }: RoundRobinManagerProps) {
     }));
   };
 
-  const handleSaveScores = (key: string, scores: Record<string, MatchResultData>) => {
+const handleSaveScores = (key: string, scores: Record<string, MatchResultData>) => {
+    // 順位に応じた勝ち点を強制的に適用（1位:3pt, 2位:2pt, 3位:1pt, 4位:0pt）
+    const adjustedScores: Record<string, MatchResultData> = {};
+    Object.entries(scores).forEach(([userId, data]) => {
+      let assignedScore = 0;
+      if (data.rank === 1) assignedScore = 3;
+      else if (data.rank === 2) assignedScore = 2;
+      else if (data.rank === 3) assignedScore = 1;
+      else if (data.rank === 4) assignedScore = 0;
+
+      adjustedScores[userId] = {
+        ...data,
+        score: assignedScore,
+      };
+    });
+
     setMatchScores(prev => ({
       ...prev,
-      [key]: scores,
+      [key]: adjustedScores,
     }));
     setActiveInputKey(null);
   };
