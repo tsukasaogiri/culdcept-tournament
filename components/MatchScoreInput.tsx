@@ -71,7 +71,6 @@ export default function MatchScoreInput({
     }
   };
 
-  // 同率を許可するため、他人の順位を消さずに各自独立して順位を選べる仕様
   const handleRankClick = (userId: string, rank: number) => {
     setRanks((prev) => {
       const newRanks = { ...prev };
@@ -134,7 +133,7 @@ export default function MatchScoreInput({
   };
 
   return (
-    <div className="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl text-slate-100">
+    <div className="w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl text-slate-100">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
         <div className="flex items-center gap-3 w-full md:w-auto">
           <span className="bg-indigo-600 text-white text-xs px-3 py-1 rounded-full font-semibold shrink-0">
@@ -173,9 +172,9 @@ export default function MatchScoreInput({
           return (
             <div
               key={player.userId}
-              className="bg-slate-800/60 border border-slate-700/60 rounded-lg p-4 flex flex-col md:flex-row items-center justify-between gap-4"
+              className="bg-slate-800/60 border border-slate-700/60 rounded-lg p-4 flex flex-col xl:flex-row items-center justify-between gap-4"
             >
-              <div className="w-full md:w-1/4 font-medium text-lg text-indigo-200 truncate">
+              <div className="w-full xl:w-1/4 font-medium text-lg text-indigo-200 truncate text-center xl:text-left">
                 {player.name}
               </div>
 
@@ -205,70 +204,72 @@ export default function MatchScoreInput({
                 })}
               </div>
 
-              {/* 魔力調整ボタン群（-1000, -100, -10, -1 / +1, +10, +100, +1000） */}
-              <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              {/* 魔力調整ボタン群（横一列にスッキリ配置） */}
+              <div className="flex items-center gap-1 flex-wrap justify-center xl:justify-end">
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, -1000)}
-                  className="px-2 py-1.5 bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-300 rounded text-xs font-semibold"
+                  className="px-2 py-1.5 bg-red-950/70 hover:bg-red-900 border border-red-800 text-red-300 rounded text-xs font-semibold"
                 >
                   -1000
                 </button>
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, -100)}
-                  className="px-2 py-1.5 bg-red-950/50 hover:bg-red-900 border border-red-800 text-red-300 rounded text-xs"
+                  className="px-2 py-1.5 bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-300 rounded text-xs"
                 >
                   -100
                 </button>
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, -10)}
-                  className="px-2 py-1.5 bg-red-950/40 hover:bg-red-900 border border-red-900 text-red-400 rounded text-xs"
+                  className="px-2 py-1.5 bg-red-950/50 hover:bg-red-900 border border-red-900 text-red-400 rounded text-xs"
                 >
                   -10
                 </button>
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, -1)}
-                  className="px-1.5 py-1.5 bg-red-950/30 hover:bg-red-900 border border-red-950 text-red-400 rounded text-xs"
+                  className="px-2 py-1.5 bg-red-950/40 hover:bg-red-900 border border-red-950 text-red-400 rounded text-xs"
                 >
                   -1
                 </button>
 
-                <input
-                  type="number"
-                  value={currentMagic}
-                  onChange={(e) => handleMagicInput(player.userId, e.target.value)}
-                  className="w-28 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-right font-mono text-amber-300 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <span className="text-xs text-slate-400">G</span>
+                <div className="flex items-center gap-1 mx-1">
+                  <input
+                    type="number"
+                    value={currentMagic}
+                    onChange={(e) => handleMagicInput(player.userId, e.target.value)}
+                    className="w-24 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-right font-mono text-amber-300 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <span className="text-xs text-slate-400">G</span>
+                </div>
 
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, 1)}
-                  className="px-1.5 py-1.5 bg-emerald-950/30 hover:bg-emerald-900 border border-emerald-950 text-emerald-400 rounded text-xs"
+                  className="px-2 py-1.5 bg-emerald-950/40 hover:bg-emerald-900 border border-emerald-950 text-emerald-400 rounded text-xs"
                 >
                   +1
                 </button>
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, 10)}
-                  className="px-2 py-1.5 bg-emerald-950/40 hover:bg-emerald-900 border border-emerald-900 text-emerald-400 rounded text-xs"
+                  className="px-2 py-1.5 bg-emerald-950/50 hover:bg-emerald-900 border border-emerald-900 text-emerald-400 rounded text-xs"
                 >
                   +10
                 </button>
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, 100)}
-                  className="px-2 py-1.5 bg-emerald-950/50 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded text-xs"
+                  className="px-2 py-1.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded text-xs"
                 >
                   +100
                 </button>
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, 1000)}
-                  className="px-2 py-1.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded text-xs font-semibold"
+                  className="px-2 py-1.5 bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded text-xs font-semibold"
                 >
                   +1000
                 </button>
