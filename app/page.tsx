@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import PlayerManager, { Player } from '@/components/PlayerManager';
 import MatchScoreInput from '@/components/MatchScoreInput';
 import Standings from '@/components/Standings';
+import RoundRobinManager from '@/components/RoundRobinManager';
 import { Button } from '@/components/ui/button';
 
 interface TableData {
@@ -29,6 +30,10 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<'register' | 'play'>('register');
+  
+  // 大会モードの選択 ('swiss' = スイスドロー戦, 'round_robin' = 総当たり戦)
+  const [tournamentMode, setTournamentMode] = useState<'swiss' | 'round_robin'>('swiss');
+
   const [players, setPlayers] = useState<Player[]>([
     { id: 'u1', name: 'プレイヤーA' },
     { id: 'u2', name: 'プレイヤーB' },
@@ -42,10 +47,8 @@ export default function Home() {
   const [roundHistories, setRoundHistories] = useState<RoundHistory[]>([]);
   const [viewingRound, setViewingRound] = useState<number>(1);
 
-  // 飛び入り参加・途中離脱用：ラウンドごとの参加メンバーIDの記録
   const [roundParticipants, setRoundParticipants] = useState<Record<number, string[]>>({});
 
-  // ラウンド開始前のメンバー確認モーダル用
   const [isParticipantModalOpen, setIsParticipantModalOpen] = useState(false);
   const [pendingNextRound, setPendingNextRound] = useState<number>(1);
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
@@ -60,6 +63,7 @@ export default function Home() {
     const savedHistories = localStorage.getItem('catan_histories');
     const savedViewingRound = localStorage.getItem('catan_viewing_round');
     const savedParticipants = localStorage.getItem('culdcept_round_participants');
+    const savedMode = localStorage.getItem('culdcept_tournament_mode');
 
     if (savedStep) setStep(savedStep as 'register' | 'play');
     if (savedPlayers) setPlayers(JSON.parse(savedPlayers));
@@ -77,6 +81,7 @@ export default function Home() {
     }
     if (savedViewingRound) setViewingRound(Number(savedViewingRound));
     if (savedParticipants) setRoundParticipants(JSON.parse(savedParticipants));
+    if (savedMode) setTournamentMode(savedMode as 'swiss' | 'round_robin');
   }, []);
 
   useEffect(() => {
@@ -89,7 +94,8 @@ export default function Home() {
     localStorage.setItem('catan_histories', JSON.stringify(roundHistories));
     localStorage.setItem('catan_viewing_round', String(viewingRound));
     localStorage.setItem('culdcept_round_participants', JSON.stringify(roundParticipants));
-  }, [isMounted, step, players, tables, currentRound, matchResults, roundHistories, viewingRound, roundParticipants]);
+    localStorage.setItem('culdcept_tournament_mode', tournamentMode);
+  }, [isMounted, step, players, tables, currentRound, matchResults, roundHistories, viewingRound, roundParticipants, tournamentMode]);
 
   const handleExportData = () => {
     const tournamentData = {
@@ -101,7 +107,8 @@ export default function Home() {
       roundHistories,
       viewingRound,
       roundParticipants,
-      version: 4,
+      tournamentMode,
+      version: 6,
       updatedAt: new Date().toISOString(),
     };
 
@@ -139,6 +146,7 @@ export default function Home() {
           if (data.roundHistories) setRoundHistories(data.roundHistories);
           if (data.viewingRound) setViewingRound(data.viewingRound);
           if (data.roundParticipants) setRoundParticipants(data.roundParticipants);
+          if (data.tournamentMode) setTournamentMode(data.tournamentMode);
 
           alert('大会データを正常に復元しました！');
         } else {
@@ -259,8 +267,12 @@ export default function Home() {
     setMatchResults([]);
     setRoundHistories([]);
     setRoundParticipants({});
-    const allIds = players.map(p => p.id);
-    generateSwissTables(1, allIds);
+    
+    if (tournamentMode === 'swiss') {
+      const allIds = players.map(p => p.id);
+      generateSwissTables(1, allIds);
+    }
+    
     setStep('play'); 
   };
 
@@ -325,6 +337,7 @@ export default function Home() {
       setRoundHistories([]);
       setRoundParticipants({});
       setViewingRound(1);
+      setTournamentMode('swiss');
       window.location.reload();
     }
   };
@@ -337,7 +350,7 @@ export default function Home() {
           <div>
             <h1 className="text-2xl font-bold">カルドセプト 大会スコア入力ツール</h1>
             <p className="text-sm text-slate-400">
-              {step === 'register' ? 'モード: プレイヤー登録・管理' : `現在: ラウンド ${currentRound} 進行中`}
+              {step === 'register' ? 'プレイヤー登録 & 大会形式の選択' : `現在: ${tournamentMode === 'swiss' ? 'スイスドロー戦' : '総当たり戦'} 進行中`}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -371,7 +384,7 @@ export default function Home() {
                 onClick={() => setStep('register')}
                 className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 text-xs"
               >
-                ＋ プレイヤー追加・管理
+                ⚙️ 設定・プレイヤー管理
               </Button>
             ) : (
               matchResults.length > 0 && (
@@ -397,14 +410,50 @@ export default function Home() {
 
         {step === 'register' ? (
           <div className="space-y-6">
-            <PlayerManager
-              players={players}
-              onUpdatePlayers={setPlayers}
-              onStartTournament={handleStartTournament}
-            />
+            
+            {/* ★ 始めに大会形式を選ぶセクション */}
+            <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-3">
+              <h2 className="text-sm font-bold text-slate-200">1. 大会形式（モード）の選択</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <button
+                  onClick={() => setTournamentMode('swiss')}
+                  className={`p-4 rounded-xl border text-left transition-all ${
+                    tournamentMode === 'swiss'
+                      ? 'bg-blue-950/40 border-blue-600 text-blue-200 shadow-lg'
+                      : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="font-bold text-sm text-slate-100 mb-1">📊 スイスドロー戦</div>
+                  <p className="text-xs text-slate-400">毎ラウンド、勝敗や成績が近い人同士が自動でマッチングされる形式です。</p>
+                </button>
+
+                <button
+                  onClick={() => setTournamentMode('round_robin')}
+                  className={`p-4 rounded-xl border text-left transition-all ${
+                    tournamentMode === 'round_robin'
+                      ? 'bg-indigo-950/40 border-indigo-600 text-indigo-200 shadow-lg'
+                      : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="font-bold text-sm text-slate-100 mb-1">🔄 総当たり戦（リーグ戦）</div>
+                  <p className="text-xs text-slate-400">全員がもれなく対戦できるように組み合わせを全ラウンド自動生成する形式です。</p>
+                </button>
+              </div>
+            </div>
+
+            {/* プレイヤー登録・管理コンポーネント */}
+            <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-3">
+              <h2 className="text-sm font-bold text-slate-200 mb-2">2. プレイヤーの登録と大会スタート</h2>
+              <PlayerManager
+                players={players}
+                onUpdatePlayers={setPlayers}
+                onStartTournament={handleStartTournament}
+              />
+            </div>
+
             {matchResults.length > 0 && (
               <div className="bg-slate-900 p-4 rounded-lg border border-slate-800 text-center">
-                <p className="text-xs text-slate-400 mb-3">すでに大会が進行中です。プレイヤーの追加・編集が終わったらこちらから戻れます。</p>
+                <p className="text-xs text-slate-400 mb-3">すでに大会が進行中です。</p>
                 <Button
                   onClick={() => setStep('play')}
                   className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-6 py-2"
@@ -415,85 +464,106 @@ export default function Home() {
             )}
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6">
             
-            {/* ラウンド切り替えタブ */}
-            <div className="bg-slate-900 p-3 rounded-lg border border-slate-800 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                <span className="text-xs text-slate-400 mr-2 font-semibold">ラウンド選択:</span>
-                {Array.from({ length: currentRound }, (_, i) => i + 1).map((rNum) => {
-                  const isFinished = matchResults.filter(item => item.round === rNum).length > 0;
+            {/* 進行中の上部表示（どちらのモードかを表示） */}
+            <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">現在のモード:</span>
+                <span className={`text-xs font-bold px-2.5 py-1 rounded ${tournamentMode === 'swiss' ? 'bg-blue-950 text-blue-300 border border-blue-800' : 'bg-indigo-950 text-indigo-300 border border-indigo-800'}`}>
+                  {tournamentMode === 'swiss' ? '📊 スイスドロー戦' : '🔄 総当たり戦（リーグ戦）'}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setStep('register')}
+                className="border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs"
+              >
+                モードやプレイヤーを変更する
+              </Button>
+            </div>
+
+            {tournamentMode === 'round_robin' ? (
+              <RoundRobinManager players={players} />
+            ) : (
+              <div className="space-y-8">
+                <div className="bg-slate-900 p-3 rounded-lg border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    <span className="text-xs text-slate-400 mr-2 font-semibold">ラウンド選択:</span>
+                    {Array.from({ length: currentRound }, (_, i) => i + 1).map((rNum) => {
+                      const isFinished = matchResults.filter(item => item.round === rNum).length > 0;
+                      return (
+                        <button
+                          key={rNum}
+                          onClick={() => setViewingRound(rNum)}
+                          className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                            viewingRound === rNum
+                              ? 'bg-blue-600 text-white shadow'
+                              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                          }`}
+                        >
+                          <span>R {rNum}</span>
+                          {isFinished && <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <span className="text-xs text-slate-400 bg-slate-950 px-3 py-1 rounded border border-slate-800">
+                    表示中: ラウンド {viewingRound} {viewingRound === currentRound ? '(進行中)' : '(過去のラウンド)'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center bg-slate-900/50 px-4 py-2 rounded border border-slate-800/50">
+                  <h2 className="text-md font-semibold">
+                    ラウンド {viewingRound} の対戦卓一覧 (全 {viewingTables.length} 卓)
+                  </h2>
+                </div>
+
+                {viewingTables.map((table) => {
+                  const existingMatch = matchResults.find(
+                    item => item.round === viewingRound && item.tableNumber === table.tableNumber
+                  );
+
                   return (
-                    <button
-                      key={rNum}
-                      onClick={() => setViewingRound(rNum)}
-                      className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                        viewingRound === rNum
-                          ? 'bg-blue-600 text-white shadow'
-                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                      }`}
-                    >
-                      <span>R {rNum}</span>
-                      {isFinished && <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>}
-                    </button>
+                    <MatchScoreInput
+                      key={`${viewingRound}-${table.tableNumber}`}
+                      tableNumber={table.tableNumber}
+                      mapName={table.mapName || `ラウンド ${viewingRound} マップ`}
+                      targetMagic={table.targetMagic ?? 8000}
+                      players={table.players}
+                      initialScores={existingMatch?.scores}
+                      onSave={(scores) => handleSaveTableScores(table.tableNumber, scores)}
+                      onUpdateSettings={(newMap, newTarget) => handleUpdateTableSettings(table.tableNumber, newMap, newTarget)}
+                    />
                   );
                 })}
-              </div>
 
-              <span className="text-xs text-slate-400 bg-slate-950 px-3 py-1 rounded border border-slate-800">
-                表示中: ラウンド {viewingRound} {viewingRound === currentRound ? '(進行中)' : '(過去のラウンド)'}
-              </span>
-            </div>
+                {viewingRound === currentRound && isViewingRoundFinished && (
+                  <div className="bg-slate-900 p-6 rounded-lg border border-slate-800 text-center space-y-4">
+                    <h3 className="text-lg font-bold text-green-400">ラウンド {currentRound} の全卓が入力されました！</h3>
+                    <Button
+                      onClick={() => handleOpenParticipantModal(currentRound + 1)}
+                      className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-2"
+                    >
+                      ラウンド {currentRound + 1} の卓組みを作成して次へ進む →
+                    </Button>
+                  </div>
+                )}
 
-            <div className="flex justify-between items-center bg-slate-900/50 px-4 py-2 rounded border border-slate-800/50">
-              <h2 className="text-md font-semibold">
-                ラウンド {viewingRound} の対戦卓一覧 (全 {viewingTables.length} 卓)
-              </h2>
-            </div>
-
-            {viewingTables.map((table) => {
-              const existingMatch = matchResults.find(
-                item => item.round === viewingRound && item.tableNumber === table.tableNumber
-              );
-
-              return (
-                <MatchScoreInput
-                  key={`${viewingRound}-${table.tableNumber}`}
-                  tableNumber={table.tableNumber}
-                  mapName={table.mapName || `ラウンド ${viewingRound} マップ`}
-                  targetMagic={table.targetMagic ?? 8000}
-                  players={table.players}
-                  initialScores={existingMatch?.scores}
-                  onSave={(scores) => handleSaveTableScores(table.tableNumber, scores)}
-                  onUpdateSettings={(newMap, newTarget) => handleUpdateTableSettings(table.tableNumber, newMap, newTarget)}
-                />
-              );
-            })}
-
-            {viewingRound === currentRound && isViewingRoundFinished && (
-              <div className="bg-slate-900 p-6 rounded-lg border border-slate-800 text-center space-y-4">
-                <h3 className="text-lg font-bold text-green-400">ラウンド {currentRound} の全卓が入力されました！</h3>
-                <Button
-                  onClick={() => handleOpenParticipantModal(currentRound + 1)}
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-2"
-                >
-                  ラウンド {currentRound + 1} の卓組みを作成して次へ進む →
-                </Button>
+                <Standings players={players} matchResults={matchResults} />
               </div>
             )}
-
-            <Standings players={players} matchResults={matchResults} />
 
           </div>
         )}
 
-        {/* 参加メンバー確認モーダル（飛び入り参加・途中離脱の調整用） */}
         {isParticipantModalOpen && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl text-slate-100">
               <h3 className="text-lg font-bold">ラウンド {pendingNextRound} の参加メンバー確認</h3>
               <p className="text-xs text-slate-400">
-                このラウンドに参加するプレイヤーにチェックを入れてください。新規で飛び入りした人は上の「プレイヤー追加・管理」から追加しておくとここに表示されます。
+                このラウンドに参加するプレイヤーにチェックを入れてください。
               </p>
 
               <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
