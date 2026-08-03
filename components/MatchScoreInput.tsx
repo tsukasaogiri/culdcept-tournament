@@ -147,7 +147,7 @@ export default function MatchScoreInput({
   };
 
   return (
-    <div className="w-full max-w-7xl bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl text-slate-100 mx-auto">
+    <div className="w-full max-w-7xl bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-6 shadow-2xl text-slate-100 mx-auto">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
         <div className="flex items-center gap-3 w-full md:w-auto">
           <span className="bg-indigo-600 text-white text-xs px-3 py-1 rounded-full font-semibold shrink-0">
@@ -191,7 +191,7 @@ export default function MatchScoreInput({
               <button
                 type="button"
                 onClick={() => setSelectedPlayerForDetail(player.userId)}
-                className="w-full xl:w-1/5 font-medium text-lg text-indigo-300 hover:text-indigo-200 truncate text-center xl:text-left underline underline-offset-4 decoration-indigo-500/50 hover:decoration-indigo-300 transition-colors cursor-pointer text-left"
+                className="w-full xl:w-1/5 font-medium text-lg text-indigo-300 hover:text-indigo-200 truncate text-center xl:text-left underline underline-offset-4 decoration-indigo-500/50 hover:decoration-indigo-300 transition-colors cursor-pointer"
                 title="クリックして個人成績を表示"
               >
                 {player.name} <span className="text-xs text-slate-400 font-normal">📊</span>
@@ -223,8 +223,8 @@ export default function MatchScoreInput({
                 })}
               </div>
 
-              {/* 魔力調整ボタン群 */}
-              <div className="flex items-center gap-1.5 flex-nowrap justify-center xl:justify-end w-full xl:w-auto">
+              {/* 魔力調整ボタン群（スマホでは折り返して収まるように変更） */}
+              <div className="flex flex-wrap items-center justify-center gap-1 xl:justify-end w-full xl:w-auto">
                 <button
                   type="button"
                   onClick={() => handleMagicChange(player.userId, -1000)}
@@ -254,7 +254,7 @@ export default function MatchScoreInput({
                   -1
                 </button>
 
-                <div className="flex items-center gap-1 mx-1 shrink-0">
+                <div className="flex items-center gap-1 mx-1 shrink-0 my-1">
                   <input
                     type="number"
                     value={currentMagic}
@@ -302,7 +302,7 @@ export default function MatchScoreInput({
         <button
           type="button"
           onClick={handleSaveClick}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-indigo-600/30 transition-all transform active:scale-95"
+          className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-indigo-600/30 transition-all transform active:scale-95"
         >
           スコアを確定して保存する
         </button>
@@ -327,7 +327,6 @@ export default function MatchScoreInput({
           score: number;
         }[] = [];
 
-        // allRounds は [{ round: number, tables: TableData[] }] の配列
         const historiesArray = Array.isArray(allRounds) ? allRounds : [];
 
         historiesArray.forEach((history: { round: number; tables: any[] }) => {
@@ -338,7 +337,6 @@ export default function MatchScoreInput({
             if (!table) return;
             const currentTableNum = table.tableNumber;
             
-            // matchResults (allMatchScores) から該当するスコアを検索
             const matchedResult = Array.isArray(allMatchScores)
               ? allMatchScores.find((m: any) => m.round === roundNum && m.tableNumber === currentTableNum)
               : null;
@@ -346,7 +344,6 @@ export default function MatchScoreInput({
             const tableScores = matchedResult?.scores || {};
             const tablePlayers = table.players || [];
             
-            // プレイヤーのIDはテーブルによって tp.userId または tp.id の場合があるため両方に対応
             const isParticipating = tablePlayers.some((tp: any) => (tp.userId || tp.id) === targetId);
 
             if (isParticipating) {
