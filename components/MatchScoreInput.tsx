@@ -13,6 +13,12 @@ export interface MatchScoreInputProps {
   targetMagic: number;
   players: Player[];
   initialScores?: Record<string, { rank: number; magic: number; score: number }>;
+  
+  allRounds?: any;
+  allMatchScores?: any;
+  allTableSettings?: any;
+  allStandings?: { id: string; name: string; matchesPlayed: number; totalMagic: number; totalScore: number }[];
+  
   onSave: (scores: Record<string, { rank: number; magic: number; score: number }>) => void;
   onUpdateSettings?: (mapName: string, targetMagic: number) => void;
 }
@@ -23,6 +29,10 @@ export default function MatchScoreInput({
   targetMagic,
   players,
   initialScores,
+  allRounds = [],
+  allMatchScores = {},
+  allTableSettings = {},
+  allStandings = [],
   onSave,
   onUpdateSettings,
 }: MatchScoreInputProps) {
@@ -31,6 +41,12 @@ export default function MatchScoreInput({
 
   const [currentMapName, setCurrentMapName] = useState(mapName);
   const [currentTargetMagic, setCurrentTargetMagic] = useState(targetMagic);
+
+  // 個人成績モーダル用のState
+  const [selectedPlayerForDetail, setSelectedPlayerForDetail] = useState<string | null>(null);
+
+  const matchPlayerCount = players.length;
+  const rankButtons = Array.from({ length: matchPlayerCount }, (_, i) => i + 1);
 
   useEffect(() => {
     setCurrentMapName(mapName);
@@ -99,16 +115,14 @@ export default function MatchScoreInput({
   };
 
   const handleSaveClick = () => {
-    if (Object.keys(ranks).length < players.length) {
+    if (Object.keys(ranks).length < matchPlayerCount) {
       alert('全員の順位が決まっていません！');
       return;
     }
 
-    const matchPlayerCount = players.length;
-
     const resultData: Record<string, { rank: number; magic: number; score: number }> = {};
     players.forEach((p) => {
-      const rank = ranks[p.userId] || players.length;
+      const rank = ranks[p.userId] || matchPlayerCount;
       const magic = magics[p.userId] ?? currentTargetMagic;
 
       let points = 0;
@@ -137,7 +151,7 @@ export default function MatchScoreInput({
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
         <div className="flex items-center gap-3 w-full md:w-auto">
           <span className="bg-indigo-600 text-white text-xs px-3 py-1 rounded-full font-semibold shrink-0">
-            卓 {tableNumber}
+            卓 {tableNumber} ({matchPlayerCount}人卓)
           </span>
           <div className="flex items-center gap-2 w-full">
             <span className="text-sm text-slate-400 shrink-0">マップ:</span>
@@ -174,12 +188,17 @@ export default function MatchScoreInput({
               key={player.userId}
               className="bg-slate-800/60 border border-slate-700/60 rounded-lg p-4 flex flex-col xl:flex-row items-center justify-between gap-4"
             >
-              <div className="w-full xl:w-1/5 font-medium text-lg text-indigo-200 truncate text-center xl:text-left">
-                {player.name}
-              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedPlayerForDetail(player.userId)}
+                className="w-full xl:w-1/5 font-medium text-lg text-indigo-300 hover:text-indigo-200 truncate text-center xl:text-left underline underline-offset-4 decoration-indigo-500/50 hover:decoration-indigo-300 transition-colors cursor-pointer text-left"
+                title="クリックして個人成績を表示"
+              >
+                {player.name} <span className="text-xs text-slate-400 font-normal">📊</span>
+              </button>
 
               <div className="flex items-center gap-2 shrink-0">
-                {[1, 2, 3, 4].map((rankNum) => {
+                {rankButtons.map((rankNum) => {
                   const isSelected = currentRank === rankNum;
                   return (
                     <button
@@ -204,7 +223,7 @@ export default function MatchScoreInput({
                 })}
               </div>
 
-              {/* 魔力調整ボタン群（十分な幅を持たせて1行に確実に収める） */}
+              {/* 魔力調整ボタン群 */}
               <div className="flex items-center gap-1.5 flex-nowrap justify-center xl:justify-end w-full xl:w-auto">
                 <button
                   type="button"
@@ -288,6 +307,156 @@ export default function MatchScoreInput({
           スコアを確定して保存する
         </button>
       </div>
+
+      {/* 個人成績モーダル */}
+      {selectedPlayerForDetail && (() => {
+        const targetPlayer = players.find(p => p.userId === selectedPlayerForDetail) || 
+                           (Array.isArray(allStandings) ? allStandings.find((s: any) => s.id === selectedPlayerForDetail) : null);
+        if (!targetPlayer) return null;
+
+        const targetId = 'userId' in targetPlayer ? targetPlayer.userId : (targetPlayer as any).id;
+        const targetName = targetPlayer.name;
+
+        const playerMatches: {
+          round: number;
+          tableNumber: number;
+          mapName: string;
+          opponents: string[];
+          rank: number;
+          magic: number;
+          score: number;
+        }[] = [];
+
+        // allRounds は [{ round: number, tables: TableData[] }] の配列
+        const historiesArray = Array.isArray(allRounds) ? allRounds : [];
+
+        historiesArray.forEach((history: { round: number; tables: any[] }) => {
+          const roundNum = history.round;
+          const tablesArray = Array.isArray(history.tables) ? history.tables : [];
+
+          tablesArray.forEach((table: any) => {
+            if (!table) return;
+            const currentTableNum = table.tableNumber;
+            
+            // matchResults (allMatchScores) から該当するスコアを検索
+            const matchedResult = Array.isArray(allMatchScores)
+              ? allMatchScores.find((m: any) => m.round === roundNum && m.tableNumber === currentTableNum)
+              : null;
+
+            const tableScores = matchedResult?.scores || {};
+            const tablePlayers = table.players || [];
+            
+            // プレイヤーのIDはテーブルによって tp.userId または tp.id の場合があるため両方に対応
+            const isParticipating = tablePlayers.some((tp: any) => (tp.userId || tp.id) === targetId);
+
+            if (isParticipating) {
+              const myScoreData = tableScores[targetId] || null;
+              
+              const opponents = tablePlayers
+                .filter((tp: any) => (tp.userId || tp.id) !== targetId)
+                .map((tp: any) => tp.name);
+
+              playerMatches.push({
+                round: roundNum,
+                tableNumber: currentTableNum,
+                mapName: table.mapName || `ラウンド ${roundNum} マップ`,
+                opponents,
+                rank: myScoreData ? myScoreData.rank : 0,
+                magic: myScoreData ? myScoreData.magic : 0,
+                score: myScoreData ? myScoreData.score : 0,
+              });
+            }
+          });
+        });
+
+        const matchesPlayed = playerMatches.filter(m => m.rank > 0).length;
+        const totalMagic = playerMatches.reduce((acc, m) => acc + m.magic, 0);
+        const totalScore = playerMatches.reduce((acc, m) => acc + m.score, 0);
+        const avgRank = matchesPlayed > 0 
+          ? (playerMatches.filter(m => m.rank > 0).reduce((acc, m) => acc + m.rank, 0) / matchesPlayed).toFixed(2)
+          : '-';
+
+        return (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-2xl p-6 space-y-6 shadow-2xl text-slate-100 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-indigo-300">{targetName} さんの個人成績</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">これまでの全対戦結果とスタッツ詳細</p>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setSelectedPlayerForDetail(null)}
+                  className="text-slate-400 hover:text-white px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-bold"
+                >
+                  ✕ 閉じる
+                </button>
+              </div>
+
+              {/* スタッツ概要 */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
+                  <div className="text-xs text-slate-400">総試合数</div>
+                  <div className="text-lg font-bold text-indigo-400 mt-1">{matchesPlayed} 試合</div>
+                </div>
+                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
+                  <div className="text-xs text-slate-400">平均順位</div>
+                  <div className="text-lg font-bold text-amber-400 mt-1">{avgRank} 位</div>
+                </div>
+                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
+                  <div className="text-xs text-slate-400">総獲得魔力</div>
+                  <div className="text-lg font-bold text-emerald-400 mt-1 font-mono">{totalMagic.toLocaleString()} G</div>
+                </div>
+                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
+                  <div className="text-xs text-slate-400">総合ポイント</div>
+                  <div className="text-lg font-bold text-indigo-300 mt-1 font-mono">{totalScore} pt</div>
+                </div>
+              </div>
+
+              {/* 対戦履歴リスト */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-slate-300 tracking-wider uppercase">対戦ラウンド履歴</h4>
+                <div className="space-y-2">
+                  {playerMatches.length > 0 ? (
+                    playerMatches.map((m, idx) => (
+                      <div key={idx} className="bg-slate-950 border border-slate-800/80 p-3.5 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs bg-indigo-950 text-indigo-300 border border-indigo-900 px-2 py-0.5 rounded font-bold">
+                              R {m.round}
+                            </span>
+                            <span className="text-xs text-slate-400">第 {m.tableNumber} 卓</span>
+                            <span className="text-xs text-slate-500">（マップ: {m.mapName}）</span>
+                          </div>
+                          <div className="text-xs text-slate-300">
+                            対戦相手: <span className="text-slate-400">{m.opponents.join(', ') || 'なし'}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 self-end sm:self-center">
+                          {m.rank > 0 ? (
+                            <div className="text-right">
+                              <div className={`text-xs font-bold ${m.rank === 1 ? 'text-amber-400' : 'text-slate-200'}`}>
+                                {m.rank}位 ({m.score}pt)
+                              </div>
+                              <div className="text-xs font-mono text-emerald-400">{m.magic.toLocaleString()} G</div>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-500">未入力</span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-xs text-slate-500 bg-slate-950 rounded-xl border border-slate-800">
+                      まだ対戦履歴がありません
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

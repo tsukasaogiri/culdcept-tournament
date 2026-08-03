@@ -344,7 +344,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-2 md:p-6">
-      {/* max-w-4xl を max-w-7xl に変更し、より広い幅で表示できるようにしました */}
       <div className="max-w-7xl mx-auto space-y-6">
         
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-4">
@@ -412,7 +411,6 @@ export default function Home() {
         {step === 'register' ? (
           <div className="space-y-6">
             
-            {/* ★ 始めに大会形式を選ぶセクション */}
             <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-3">
               <h2 className="text-sm font-bold text-slate-200">1. 大会形式（モード）の選択</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -442,7 +440,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* プレイヤー登録・管理コンポーネント */}
             <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-3">
               <h2 className="text-sm font-bold text-slate-200 mb-2">2. プレイヤーの登録と大会スタート</h2>
               <PlayerManager
@@ -467,7 +464,6 @@ export default function Home() {
         ) : (
           <div className="space-y-6">
             
-            {/* 進行中の上部表示（どちらのモードかを表示） */}
             <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-400">現在のモード:</span>
@@ -513,84 +509,88 @@ export default function Home() {
                   <span className="text-xs text-slate-400 bg-slate-950 px-3 py-1 rounded border border-slate-800">
                     表示中: ラウンド {viewingRound} {viewingRound === currentRound ? '(進行中)' : '(過去のラウンド)'}
                   </span>
-              </div>
-
-              <div className="flex justify-between items-center bg-slate-900/50 px-4 py-2 rounded border border-slate-800/50">
-                <h2 className="text-md font-semibold">
-                  ラウンド {viewingRound} の対戦卓一覧 (全 {viewingTables.length} 卓)
-                </h2>
-              </div>
-
-              {viewingTables.map((table) => {
-                const existingMatch = matchResults.find(
-                  item => item.round === viewingRound && item.tableNumber === table.tableNumber
-                );
-
-                return (
-                  <MatchScoreInput
-                    key={`${viewingRound}-${table.tableNumber}`}
-                    tableNumber={table.tableNumber}
-                    mapName={table.mapName || `ラウンド ${viewingRound} マップ`}
-                    targetMagic={table.targetMagic ?? 8000}
-                    players={table.players}
-                    initialScores={existingMatch?.scores}
-                    onSave={(scores) => handleSaveTableScores(table.tableNumber, scores)}
-                    onUpdateSettings={(newMap, newTarget) => handleUpdateTableSettings(table.tableNumber, newMap, newTarget)}
-                  />
-                );
-              })}
-
-              {viewingRound === currentRound && isViewingRoundFinished && (
-                <div className="bg-slate-900 p-6 rounded-lg border border-slate-800 text-center space-y-4">
-                  <h3 className="text-lg font-bold text-green-400">ラウンド {currentRound} の全卓が入力されました！</h3>
-                  <Button
-                    onClick={() => handleOpenParticipantModal(currentRound + 1)}
-                    className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-2"
-                  >
-                    ラウンド {currentRound + 1} の卓組みを作成して次へ進む →
-                  </Button>
                 </div>
-              )}
 
-              <Standings players={players} matchResults={matchResults} />
-            </div>
-          )}
+                <div className="flex justify-between items-center bg-slate-900/50 px-4 py-2 rounded border border-slate-800/50">
+                  <h2 className="text-md font-semibold">
+                    ラウンド {viewingRound} の対戦卓一覧 (全 {viewingTables.length} 卓)
+                  </h2>
+                </div>
 
-        </div>
-        )}
+                {viewingTables.map((table) => {
+                  const existingMatch = matchResults.find(
+                    item => item.round === viewingRound && item.tableNumber === table.tableNumber
+                  );
 
-        {isParticipantModalOpen && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl text-slate-100">
-              <h3 className="text-lg font-bold">ラウンド {pendingNextRound} の参加メンバー確認</h3>
-              <p className="text-xs text-slate-400">
-                このラウンドに参加するプレイヤーにチェックを入れてください。
-              </p>
-
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                {players.map(p => {
-                  const isChecked = selectedParticipantIds.includes(p.id);
                   return (
-                    <label
-                      key={p.id}
-                      className="flex items-center justify-between p-3 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 rounded-lg cursor-pointer"
-                    >
-                      <span className="font-medium text-slate-200">{p.name}</span>
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedParticipantIds(prev => [...prev, p.id]);
-                          } else {
-                            setSelectedParticipantIds(prev => prev.filter(id => id !== p.id));
-                          }
-                        }}
-                        className="w-4 h-4 accent-indigo-600 rounded"
-                      />
-                    </label>
+                    <MatchScoreInput
+                      key={`${viewingRound}-${table.tableNumber}`}
+                      tableNumber={table.tableNumber}
+                      mapName={table.mapName || `ラウンド ${viewingRound} マップ`}
+                      targetMagic={table.targetMagic ?? 8000}
+                      players={table.players}
+                      initialScores={existingMatch?.scores}
+                      onSave={(scores) => handleSaveTableScores(table.tableNumber, scores)}
+                      onUpdateSettings={(newMap, newTarget) => handleUpdateTableSettings(table.tableNumber, newMap, newTarget)}
+                      allRounds={roundHistories}
+                      allMatchScores={matchResults}
+                      allTableSettings={viewingTables}
+                    />
                   );
                 })}
+
+                {viewingRound === currentRound && isViewingRoundFinished && (
+                  <div className="bg-slate-900 p-6 rounded-lg border border-slate-800 text-center space-y-4">
+                    <h3 className="text-lg font-bold text-green-400">ラウンド {currentRound} の全卓が入力されました！</h3>
+                    <Button
+                      onClick={() => handleOpenParticipantModal(currentRound + 1)}
+                      className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-2"
+                    >
+                      ラウンド {currentRound + 1} の卓組みを作成して次へ進む →
+                    </Button>
+                  </div>
+                )}
+
+                <Standings players={players} matchResults={matchResults} />
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+
+      {isParticipantModalOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl text-slate-100">
+            <h3 className="text-lg font-bold">ラウンド {pendingNextRound} の参加メンバー確認</h3>
+            <p className="text-xs text-slate-400">
+              このラウンドに参加するプレイヤーにチェックを入れてください。
+            </p>
+
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+              {players.map(p => {
+                const isChecked = selectedParticipantIds.includes(p.id);
+                return (
+                  <label
+                    key={p.id}
+                    className="flex items-center justify-between p-3 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 rounded-lg cursor-pointer"
+                  >
+                    <span className="font-medium text-slate-200">{p.name}</span>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedParticipantIds(prev => [...prev, p.id]);
+                        } else {
+                          setSelectedParticipantIds(prev => prev.filter(id => id !== p.id));
+                        }
+                      }}
+                      className="w-4 h-4 accent-indigo-600 rounded"
+                    />
+                  </label>
+                );
+              })}
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
@@ -611,8 +611,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
-    </div>
-   </main>
+    </main>
   );
 }
