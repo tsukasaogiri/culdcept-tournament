@@ -5,6 +5,7 @@ import PlayerManager, { Player } from '@/components/PlayerManager';
 import MatchScoreInput from '@/components/MatchScoreInput';
 import Standings from '@/components/Standings';
 import RoundRobinManager from '@/components/RoundRobinManager';
+import PennantManager from '@/components/PennantManager';
 import { Button } from '@/components/ui/button';
 
 interface TableData {
@@ -31,7 +32,8 @@ export default function Home() {
 
   const [step, setStep] = useState<'register' | 'play'>('register');
   
-  const [tournamentMode, setTournamentMode] = useState<'swiss' | 'round_robin'>('swiss');
+  const [tournamentMode, setTournamentMode] = useState<'swiss' | 'round_robin' | 'pennant'>('swiss');
+  
   const [totalRounds, setTotalRounds] = useState<number>(3);
   const [enablePlayoff, setEnablePlayoff] = useState<boolean>(false);
   const [isPlayoff, setIsPlayoff] = useState<boolean>(false);
@@ -86,7 +88,7 @@ export default function Home() {
     }
     if (savedViewingRound) setViewingRound(Number(savedViewingRound));
     if (savedParticipants) setRoundParticipants(JSON.parse(savedParticipants));
-    if (savedMode) setTournamentMode(savedMode as 'swiss' | 'round_robin');
+    if (savedMode) setTournamentMode(savedMode as 'swiss' | 'round_robin' | 'pennant');
     if (savedTotalRounds) setTotalRounds(Number(savedTotalRounds));
     if (savedEnablePlayoff) setEnablePlayoff(JSON.parse(savedEnablePlayoff));
     if (savedIsPlayoff) setIsPlayoff(JSON.parse(savedIsPlayoff));
@@ -122,7 +124,7 @@ export default function Home() {
       totalRounds,
       enablePlayoff,
       isPlayoff,
-      version: 10,
+      version: 13,
       updatedAt: new Date().toISOString(),
     };
 
@@ -184,56 +186,6 @@ export default function Home() {
     return null;
   }
 
-  const calculatePlayerStats = (participantIds: string[]) => {
-    const activePlayers = players.filter(p => participantIds.includes(p.id));
-    const statsMap: { [userId: string]: { id: string; name: string; points: number; totalScore: number } } = {};
-    activePlayers.forEach(p => {
-      statsMap[p.id] = { id: p.id, name: p.name, points: 0, totalScore: 0 };
-    });
-
-    matchResults.forEach(match => {
-      // プレーオフ（予選ラウンド数より後のラウンド）は集計対象外にする
-      if (match.round > totalRounds) return;
-
-      const scores = match.scores;
-      if (!scores) return;
-      const matchPlayerCount = Object.keys(scores).length;
-
-      Object.entries(scores).forEach(([userId, data]: [string, any]) => {
-        if (statsMap[userId]) {
-          statsMap[userId].totalScore += Number(data.score) || 0;
-          const rank = Number(data.rank);
-
-          if (matchPlayerCount === 4) {
-            if (rank === 1) statsMap[userId].points += 6;
-            else if (rank === 2) statsMap[userId].points += 4;
-            else if (rank === 3) statsMap[userId].points += 2;
-            else if (rank === 4) statsMap[userId].points += 0;
-          } else if (matchPlayerCount === 3) {
-            if (rank === 1) statsMap[userId].points += 6;
-            else if (rank === 2) statsMap[userId].points += 3;
-            else if (rank === 3) statsMap[userId].points += 0;
-          } else if (matchPlayerCount === 2) {
-            if (rank === 1) statsMap[userId].points += 6;
-            else if (rank === 2) statsMap[userId].points += 0;
-          }
-        }
-      });
-    });
-
-    let sortedPlayers = [...activePlayers];
-    sortedPlayers.sort((a, b) => {
-      const statA = statsMap[a.id] || { points: 0, totalScore: 0 };
-      const statB = statsMap[b.id] || { points: 0, totalScore: 0 };
-      if (statB.points !== statA.points) {
-        return statB.points - statA.points;
-      }
-      return statB.totalScore - statA.totalScore;
-    });
-
-    return sortedPlayers;
-  };
-
   const generateSwissTables = (roundNum: number, participantIds: string[]) => {
     const activePlayers = players.filter(p => participantIds.includes(p.id));
     const statsMap: { [userId: string]: { id: string; name: string; points: number; totalScore: number } } = {};
@@ -242,7 +194,6 @@ export default function Home() {
     });
 
     matchResults.forEach(match => {
-      // プレーオフは集計対象外にする
       if (match.round > totalRounds) return;
       const scores = match.scores;
       if (!scores) return;
@@ -332,9 +283,36 @@ export default function Home() {
 
   const generatePlayoffTables = () => {
     const allIds = players.map(p => p.id);
-    const sortedActive = calculatePlayerStats(allIds);
-    const playoffPlayers = sortedActive.slice(0, 4);
+    const activePlayers = players.filter(p => allIds.includes(p.id));
+    const statsMap: { [userId: string]: { points: number; totalScore: number } } = {};
+    activePlayers.forEach(p => { statsMap[p.id] = { points: 0, totalScore: 0 }; });
 
+    matchResults.forEach(match => {
+      if (match.round > totalRounds) return;
+      const scores = match.scores;
+      if (!scores) return;
+      const matchPlayerCount = Object.keys(scores).length;
+      Object.entries(scores).forEach(([userId, data]: [string, any]) => {
+        if (statsMap[userId]) {
+          statsMap[userId].totalScore += Number(data.score) || 0;
+          const rank = Number(data.rank);
+          if (matchPlayerCount === 4) {
+            if (rank === 1) statsMap[userId].points += 6;
+            else if (rank === 2) statsMap[userId].points += 4;
+            else if (rank === 3) statsMap[userId].points += 2;
+          }
+        }
+      });
+    });
+
+    let sortedActive = [...activePlayers].sort((a, b) => {
+      const sA = statsMap[a.id] || { points: 0, totalScore: 0 };
+      const sB = statsMap[b.id] || { points: 0, totalScore: 0 };
+      if (sB.points !== sA.points) return sB.points - sA.points;
+      return sB.totalScore - sA.totalScore;
+    });
+
+    const playoffPlayers = sortedActive.slice(0, 4);
     const playoffRoundNum = totalRounds + 1;
     const newTables: TableData[] = [];
 
@@ -426,14 +404,13 @@ export default function Home() {
 
   const viewingTables = roundHistories.find(h => h.round === viewingRound)?.tables || (viewingRound === currentRound ? tables : []);
   const viewingRoundResultsCount = matchResults.filter(item => item.round === viewingRound).length;
-  const isViewingRoundFinished = viewingRoundResultsCount === viewingTables.length && viewingTables.length > 0;
 
   const isQualifyingFinished = currentRound === totalRounds && matchResults.filter(item => item.round === totalRounds).length === viewingTables.length && viewingTables.length > 0;
 
   const playoffRoundNum = totalRounds + 1;
   const playoffMatch = matchResults.find(item => item.round === playoffRoundNum && item.tableNumber === 1);
   
-  let playoffRankings: { userId: string; rank: number; name: string; score: string; totalMagic: string }[] = [];
+  let playoffRankings: { userId: string; rank: number; name: string; totalMagic: string }[] = [];
   if (playoffMatch && playoffMatch.scores) {
     const scoresObj = playoffMatch.scores;
     const list = Object.entries(scoresObj).map(([userId, data]: [string, any]) => {
@@ -442,8 +419,6 @@ export default function Home() {
         userId,
         name: p ? p.name : '不明',
         rank: Number(data.rank) || 4,
-        score: data.score,
-        // MatchScoreInput から保存される魔力のプロパティ名（totalMagic または score など）に合わせて調整
         totalMagic: data.totalMagic || data.magic || '0',
       };
     });
@@ -469,6 +444,12 @@ export default function Home() {
     }
   };
 
+  const getModeLabel = () => {
+    if (tournamentMode === 'swiss') return `📊 スイスドロー戦 (予選全 ${totalRounds} R ${enablePlayoff ? '/ 決勝上位4名あり' : ''})`;
+    if (tournamentMode === 'round_robin') return `🔄 リーグ戦モード (短期・長期)`;
+    return `⚾ ペナントレースモード`;
+  };
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-2 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -477,7 +458,7 @@ export default function Home() {
           <div>
             <h1 className="text-2xl font-bold">カルドセプト 大会スコア入力ツール</h1>
             <p className="text-sm text-slate-400">
-              {step === 'register' ? 'プレイヤー登録 & 大会設定' : `現在: ${tournamentMode === 'swiss' ? 'スイスドロー戦' : '総当たり戦'} （予選全 ${totalRounds} R制 ${enablePlayoff ? '/ 決勝プレーオフあり' : ''}）`}
+              {step === 'register' ? 'プレイヤー登録 & 大会モード選択' : `現在: ${getModeLabel()}`}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -539,8 +520,9 @@ export default function Home() {
           <div className="space-y-6">
             
             <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-4">
-              <h2 className="text-sm font-bold text-slate-200">1. 大会形式（モード）とラウンド数の設定</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+              <h2 className="text-sm font-bold text-slate-200">1. 大会形式（モード）の選択</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button
                   onClick={() => setTournamentMode('swiss')}
                   className={`p-4 rounded-xl border text-left transition-all ${
@@ -550,7 +532,7 @@ export default function Home() {
                   }`}
                 >
                   <div className="font-bold text-sm text-slate-100 mb-1">📊 スイスドロー戦</div>
-                  <p className="text-xs text-slate-400">毎ラウンド、勝敗や成績が近い人同士が自動でマッチングされる形式です。</p>
+                  <p className="text-xs text-slate-400">勝敗が近い人同士が毎ラウンド自動マッチング。オプションで決勝プレーオフ可能。</p>
                 </button>
 
                 <button
@@ -561,13 +543,25 @@ export default function Home() {
                       : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
                   }`}
                 >
-                  <div className="font-bold text-sm text-slate-100 mb-1">🔄 総当たり戦（リーグ戦）</div>
-                  <p className="text-xs text-slate-400">全員がもれなく対戦できるように組み合わせを全ラウンド自動生成する形式です。</p>
+                  <div className="font-bold text-sm text-slate-100 mb-1">🔄 リーグ戦モード</div>
+                  <p className="text-xs text-slate-400">短期モード（1人1〜10試合）や、4の倍数限定の長期総当たり戦（参加者-1試合）を選択可能。</p>
+                </button>
+
+                <button
+                  onClick={() => setTournamentMode('pennant')}
+                  className={`p-4 rounded-xl border text-left transition-all ${
+                    tournamentMode === 'pennant'
+                      ? 'bg-emerald-950/40 border-emerald-600 text-emerald-200 shadow-lg'
+                      : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="font-bold text-sm text-slate-100 mb-1">⚾ ペナントレース</div>
+                  <p className="text-xs text-slate-400">複数サイクルの長期総当たりを専用管理するペナントモード。</p>
                 </button>
               </div>
 
               {tournamentMode === 'swiss' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-800">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-800 mt-2">
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-semibold text-slate-300">予選総ラウンド数:</span>
                     <select
@@ -626,8 +620,14 @@ export default function Home() {
             <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <span className="text-xs text-slate-400">現在のモード:</span>
-                <span className={`text-xs font-bold px-2.5 py-1 rounded ${tournamentMode === 'swiss' ? 'bg-blue-950 text-blue-300 border border-blue-800' : 'bg-indigo-950 text-indigo-300 border border-indigo-800'}`}>
-                  {tournamentMode === 'swiss' ? `📊 スイスドロー戦 (予選全 ${totalRounds} R ${enablePlayoff ? '/ 決勝上位4名あり' : ''})` : '🔄 総当たり戦（リーグ戦）'}
+                <span className={`text-xs font-bold px-2.5 py-1 rounded ${
+                  tournamentMode === 'swiss' 
+                    ? 'bg-blue-950 text-blue-300 border border-blue-800' 
+                    : tournamentMode === 'round_robin' 
+                    ? 'bg-indigo-950 text-indigo-300 border border-indigo-800'
+                    : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                }`}>
+                  {getModeLabel()}
                 </span>
               </div>
               <Button
@@ -641,6 +641,8 @@ export default function Home() {
 
             {tournamentMode === 'round_robin' ? (
               <RoundRobinManager players={players} />
+            ) : tournamentMode === 'pennant' ? (
+              <PennantManager players={players} />
             ) : (
               <div className="space-y-8">
                 
@@ -655,38 +657,37 @@ export default function Home() {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-                   {playoffRankings.map((item) => {
-                     const isWinner = item.rank === 1;
-                     return (
-                       <div
-                         key={item.userId}
-                         className={`p-4 rounded-xl border flex flex-col justify-between relative overflow-hidden transition-all ${
-                           isWinner
-                             ? 'bg-amber-500/20 border-amber-400 shadow-lg shadow-amber-500/10'
-                             : 'bg-slate-800/80 border-slate-700'
-                         }`}
-                       >
-                         {isWinner && (
-                            <div className="absolute top-0 right-0 bg-amber-500 text-slate-950 font-bold text-[10px] px-2.5 py-0.5 rounded-bl font-mono">
-                              CHAMPION
+                      {playoffRankings.map((item) => {
+                        const isWinner = item.rank === 1;
+                        return (
+                          <div
+                            key={item.userId}
+                            className={`p-4 rounded-xl border flex flex-col justify-between relative overflow-hidden transition-all ${
+                              isWinner
+                                ? 'bg-amber-500/20 border-amber-400 shadow-lg shadow-amber-500/10'
+                                : 'bg-slate-800/80 border-slate-700'
+                            }`}
+                          >
+                            {isWinner && (
+                              <div className="absolute top-0 right-0 bg-amber-500 text-slate-950 font-bold text-[10px] px-2.5 py-0.5 rounded-bl font-mono">
+                                CHAMPION
+                              </div>
+                            )}
+                            <div>
+                              <div className="text-xs font-semibold text-slate-400 mb-1">
+                                {item.rank === 1 ? '🥇 優勝' : item.rank === 2 ? '🥈 準優勝' : item.rank === 3 ? '🥉 3位' : '4位'}
+                              </div>
+                              <div className="text-lg font-bold text-slate-100 truncate mb-2">{item.name}</div>
                             </div>
-                         )}
-                          <div>
-                            <div className="text-xs font-semibold text-slate-400 mb-1">
-                              {item.rank === 1 ? '🥇 優勝' : item.rank === 2 ? '🥈 準優勝' : item.rank === 3 ? '🥉 3位' : '4位'}
+                            <div className="text-xs text-slate-300 font-mono border-t border-slate-700/60 pt-2 flex justify-between items-center">
+                              <span>総魔力</span>
+                              <span className="font-bold text-amber-300">{item.totalMagic} G</span>
                             </div>
-                            <div className="text-lg font-bold text-slate-100 truncate mb-2">{item.name}</div>
                           </div>
-                          {/* スコア表示を削除し、総魔力のみを表示 */}
-                          <div className="text-xs text-slate-300 font-mono border-t border-slate-700/60 pt-2 flex justify-between items-center">
-                            <span>総魔力</span>
-                            <span className="font-bold text-amber-300">{item.totalMagic} G</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                      </div>
+                        );
+                      })}
                     </div>
+                  </div>
                 )}
 
                 <div className="bg-slate-900 p-3 rounded-lg border border-slate-800 flex flex-wrap items-center justify-between gap-4">
@@ -745,7 +746,7 @@ export default function Home() {
                   );
                 })}
 
-                {viewingRound === currentRound && isViewingRoundFinished && (
+                {viewingRound === currentRound && viewingRoundResultsCount === viewingTables.length && viewingTables.length > 0 && (
                   <div className="bg-slate-900 p-6 rounded-lg border border-slate-800 text-center space-y-4">
                     <h3 className="text-lg font-bold text-green-400">
                       {currentRound > totalRounds ? '🏆 決勝プレーオフが終了しました！' : `ラウンド ${currentRound} の全卓が入力されました！`}
@@ -780,9 +781,9 @@ export default function Home() {
                 )}
 
                 <Standings 
-  players={players} 
-  matchResults={matchResults.filter(item => item.round <= totalRounds)} 
-/>
+                  players={players} 
+                  matchResults={matchResults.filter(item => item.round <= totalRounds)} 
+                />
               </div>
             )}
           </div>
