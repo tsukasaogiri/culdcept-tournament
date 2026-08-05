@@ -237,7 +237,7 @@ export default function Home() {
 
       newTables.push({
         tableNumber: i + 1,
-        mapName: `ラウンド ${roundNum} マップ`,
+        mapName: ``,
         targetMagic: 8000,
         players: chunk.map((p, index) => ({
           userId: p.id,
@@ -526,7 +526,7 @@ export default function Home() {
                     <MatchScoreInput
                       key={`${viewingRound}-${table.tableNumber}`}
                       tableNumber={table.tableNumber}
-                      mapName={table.mapName || `ラウンド ${viewingRound} マップ`}
+                      mapName={table.mapName || ``}
                       targetMagic={table.targetMagic ?? 8000}
                       players={table.players}
                       initialScores={existingMatch?.scores}

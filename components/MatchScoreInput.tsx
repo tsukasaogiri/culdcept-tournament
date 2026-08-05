@@ -23,6 +23,30 @@ export interface MatchScoreInputProps {
   onUpdateSettings?: (mapName: string, targetMagic: number) => void;
 }
 
+// カルドセプト ビギンズ等の代表的なマップリスト（必要に応じて追加・変更できます）
+const CEPT_BEGINS_MAPS = [
+  '古書館',
+  'リカドの村',
+  '天空庭園',
+  'シーダモの港',
+  'ガイデス闘技場１',
+  'ガイデス闘技場２',
+  '地の神殿',
+  '塔都テレイア',
+  '風の神殿',
+  '炎都ビステア',
+  '火の神殿',
+  '水の神殿跡',
+  '闇神の神殿',
+  '闇神ノンデス',
+  '天空庭園（半壊）',
+  'ロータリー',
+  'ザ・エイト',
+  'ダブルハート',
+  'モルフォ',
+  // 必要に応じて他のマップを追加してください
+];
+
 export default function MatchScoreInput({
   tableNumber,
   mapName,
@@ -155,13 +179,23 @@ export default function MatchScoreInput({
           </span>
           <div className="flex items-center gap-2 w-full">
             <span className="text-sm text-slate-400 shrink-0">マップ:</span>
-            <input
-              type="text"
+            {/* テキスト入力からセレクトボックスに変更 */}
+            <select
               value={currentMapName}
               onChange={(e) => handleMapNameChange(e.target.value)}
-              placeholder="マップ名を入力"
               className="bg-slate-950 border border-slate-700 rounded px-3 py-1 text-white font-bold text-sm w-full md:w-48 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            >
+              <option value="" disabled>マップを選択</option>
+              {/* 現在のマップ名がプリセットにない場合の救済措置 */}
+              {currentMapName && !CEPT_BEGINS_MAPS.includes(currentMapName) && (
+                <option value={currentMapName}>{currentMapName}</option>
+              )}
+              {CEPT_BEGINS_MAPS.map((mapTitle) => (
+                <option key={mapTitle} value={mapTitle}>
+                  {mapTitle}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -223,7 +257,7 @@ export default function MatchScoreInput({
                 })}
               </div>
 
-              {/* 魔力調整ボタン群（スマホでは折り返して収まるように変更） */}
+              {/* 魔力調整ボタン群 */}
               <div className="flex flex-wrap items-center justify-center gap-1 xl:justify-end w-full xl:w-auto">
                 <button
                   type="button"
@@ -285,12 +319,13 @@ export default function MatchScoreInput({
                 >
                   +100
                 </button>
+                  
                 <button
-                  type="button"
-                  onClick={() => handleMagicChange(player.userId, 1000)}
-                  className="px-2 py-1.5 bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded text-xs font-semibold shrink-0"
+                type="button"
+                onClick={() => handleMagicChange(player.userId, 1000)}
+                className="px-2 py-1.5 bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded text-xs font-semibold shrink-0"
                 >
-                  +1000
+               +1000
                 </button>
               </div>
             </div>
@@ -356,7 +391,7 @@ export default function MatchScoreInput({
               playerMatches.push({
                 round: roundNum,
                 tableNumber: currentTableNum,
-                mapName: table.mapName || `ラウンド ${roundNum} マップ`,
+                mapName: table.mapName || ``,
                 opponents,
                 rank: myScoreData ? myScoreData.rank : 0,
                 magic: myScoreData ? myScoreData.magic : 0,
