@@ -551,11 +551,11 @@ export default function Home() {
                   onClick={() => setTournamentMode('pennant')}
                   className={`p-4 rounded-xl border text-left transition-all ${
                     tournamentMode === 'pennant'
-                      ? 'bg-emerald-950/40 border-emerald-600 text-emerald-200 shadow-lg'
+                      ? 'bg-indigo-950/40 border-indigo-600 text-indigo-200 shadow-lg'
                       : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
-                  }`}
+                   }`}
                 >
-                  <div className="font-bold text-sm text-slate-100 mb-1">⚾ ペナントレース</div>
+                  <div className="font-bold text-sm text-slate-100 mb-1">⚾ ペナントレースモード</div>
                   <p className="text-xs text-slate-400">複数サイクルの長期総当たりを専用管理するペナントモード。</p>
                 </button>
               </div>
