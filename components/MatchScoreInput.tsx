@@ -14,6 +14,10 @@ export interface MatchScoreInputProps {
   players: Player[];
   initialScores?: Record<string, { rank: number; magic: number; score: number }>;
   
+  // 追加: 現在のラウンド数と総ラウンド数
+  currentRound?: number;
+  totalRounds?: number;
+
   allRounds?: any;
   allMatchScores?: any;
   allTableSettings?: any;
@@ -44,7 +48,6 @@ const CEPT_BEGINS_MAPS = [
   'ザ・エイト',
   'ダブルハート',
   'モルフォ',
-  // 必要に応じて他のマップを追加してください
 ];
 
 export default function MatchScoreInput({
@@ -53,6 +56,8 @@ export default function MatchScoreInput({
   targetMagic,
   players,
   initialScores,
+  currentRound,
+  totalRounds,
   allRounds = [],
   allMatchScores = {},
   allTableSettings = {},
@@ -176,17 +181,16 @@ export default function MatchScoreInput({
         <div className="flex items-center gap-3 w-full md:w-auto">
           <span className="bg-indigo-600 text-white text-xs px-3 py-1 rounded-full font-semibold shrink-0">
             卓 {tableNumber} ({matchPlayerCount}人卓)
+            {currentRound && totalRounds ? ` / R${currentRound} (全${totalRounds}R)` : ''}
           </span>
           <div className="flex items-center gap-2 w-full">
             <span className="text-sm text-slate-400 shrink-0">マップ:</span>
-            {/* テキスト入力からセレクトボックスに変更 */}
             <select
               value={currentMapName}
               onChange={(e) => handleMapNameChange(e.target.value)}
               className="bg-slate-950 border border-slate-700 rounded px-3 py-1 text-white font-bold text-sm w-full md:w-48 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="" disabled>マップを選択</option>
-              {/* 現在のマップ名がプリセットにない場合の救済措置 */}
               {currentMapName && !CEPT_BEGINS_MAPS.includes(currentMapName) && (
                 <option value={currentMapName}>{currentMapName}</option>
               )}
@@ -319,13 +323,12 @@ export default function MatchScoreInput({
                 >
                   +100
                 </button>
-                  
                 <button
-                type="button"
-                onClick={() => handleMagicChange(player.userId, 1000)}
-                className="px-2 py-1.5 bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded text-xs font-semibold shrink-0"
+                  type="button"
+                  onClick={() => handleMagicChange(player.userId, 1000)}
+                  className="px-2 py-1.5 bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 rounded text-xs font-semibold shrink-0"
                 >
-               +1000
+                  +1000
                 </button>
               </div>
             </div>
