@@ -472,7 +472,7 @@ export default function PennantManager({ players }: PennantManagerProps) {
                     onChange={(e) => setLoopCount(Number(e.target.value))}
                     className="bg-slate-900 text-emerald-300 font-bold px-2 py-0.5 rounded border border-slate-700 focus:outline-none"
                   >
-                    {[1, 2, 3, 4, 5].map(num => (
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19].map(num => (
                       <option key={num} value={num}>{num} 周</option>
                     ))}
                   </select>
