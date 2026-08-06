@@ -110,7 +110,44 @@ export default function Home() {
     localStorage.setItem('culdcept_is_playoff', JSON.stringify(isPlayoff));
   }, [isMounted, step, players, tables, currentRound, matchResults, roundHistories, viewingRound, roundParticipants, tournamentMode, totalRounds, enablePlayoff, isPlayoff]);
 
-  const handleExportData = () => {
+const handleExportData = () => {
+    // スイスドロー等のローカルストレージデータ（catan_ または culdcept_ で始まるキー）を収集
+    const swissStorage: Record<string, string> = {};
+    const keysToExport = [
+      'catan_step',
+      'catan_players',
+      'catan_tables',
+      'catan_round',
+      'catan_results',
+      'catan_histories',
+      'catan_viewing_round',
+      'culdcept_round_participants',
+      'culdcept_tournament_mode',
+      'culdcept_total_rounds',
+      'culdcept_enable_playoff',
+      'culdcept_is_playoff',
+    ];
+    keysToExport.forEach(k => {
+      const val = localStorage.getItem(k);
+      if (val) swissStorage[k] = val;
+    });
+
+    // ペナントレースのローカルストレージデータを収集
+    const pennantDataKeys = Object.keys(localStorage).filter(k => k.startsWith('culdcept_pennant_manager_'));
+    const pennantStorage: Record<string, string> = {};
+    pennantDataKeys.forEach(k => {
+      const val = localStorage.getItem(k);
+      if (val) pennantStorage[k] = val;
+    });
+
+    // リーグ戦のローカルストレージデータを収集
+    const roundRobinDataKeys = Object.keys(localStorage).filter(k => k.startsWith('culdcept_round_robin_'));
+    const roundRobinStorage: Record<string, string> = {};
+    roundRobinDataKeys.forEach(k => {
+      const val = localStorage.getItem(k);
+      if (val) roundRobinStorage[k] = val;
+    });
+
     const tournamentData = {
       step,
       players,
@@ -124,7 +161,10 @@ export default function Home() {
       totalRounds,
       enablePlayoff,
       isPlayoff,
-      version: 13,
+      swissStorage,        // 追加: スイスドロー等の保存データ一式
+      pennantStorage,      
+      roundRobinStorage,   
+      version: 15,
       updatedAt: new Date().toISOString(),
     };
 
@@ -151,6 +191,28 @@ export default function Home() {
         const data = JSON.parse(content);
 
         if (data.players && Array.isArray(data.players)) {
+          // スイスドロー等のストレージデータをlocalStorageに復元
+          if (data.swissStorage) {
+            Object.entries(data.swissStorage).forEach(([key, value]) => {
+              localStorage.setItem(key, value as string);
+            });
+          }
+
+          // ペナントレースのデータをlocalStorageに復元
+          if (data.pennantStorage) {
+            Object.entries(data.pennantStorage).forEach(([key, value]) => {
+              localStorage.setItem(key, value as string);
+            });
+          }
+
+          // リーグ戦のデータをlocalStorageに復元
+          if (data.roundRobinStorage) {
+            Object.entries(data.roundRobinStorage).forEach(([key, value]) => {
+              localStorage.setItem(key, value as string);
+            });
+          }
+
+          // ステートの直接復元
           setPlayers(data.players);
           if (data.step) setStep(data.step);
           if (data.tables) setTables(data.tables);
@@ -167,7 +229,8 @@ export default function Home() {
           if (data.enablePlayoff !== undefined) setEnablePlayoff(data.enablePlayoff);
           if (data.isPlayoff !== undefined) setIsPlayoff(data.isPlayoff);
 
-          alert('大会データを正常に復元しました！');
+          alert('大会データと試合結果を正常に復元しました！');
+          window.location.reload(); // 確実に反映させるためにリロード
         } else {
           alert('ファイルの形式が正しくありません。');
         }
