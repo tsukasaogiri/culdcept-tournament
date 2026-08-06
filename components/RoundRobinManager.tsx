@@ -790,7 +790,7 @@ export default function RoundRobinManager({ players }: RoundRobinManagerProps) {
                           const tableKey = `${currentRound}-${table.tableNumber}`;
                           const isFinished = !!matchScores[tableKey];
                           const isEditing = activeInputKey === tableKey;
-                          const currentSettings = tableSettings[tableKey] || { mapName: '', targetMagic: 10000 };
+                          const currentSettings = tableSettings[tableKey] || { mapName: '', targetMagic: 8000 };
 
                           return (
                             <div key={table.tableNumber} className="bg-slate-950 border border-slate-800 p-5 rounded-xl space-y-4 shadow-lg">

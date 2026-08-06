@@ -46,7 +46,7 @@ export default function PennantManager({ players }: PennantManagerProps) {
   const [loopCount, setLoopCount] = useState<number>(1); // ループ回数（周回数）
   const [enablePlayoffs, setEnablePlayoffs] = useState<boolean>(true); // プレーオフを行うかどうか
   const [playoffScores, setPlayoffScores] = useState<Record<string, MatchResultData>>({});
-  const [playoffSettings, setPlayoffSettings] = useState<{ mapName: string; targetMagic: number }>({ mapName: '', targetMagic: 10000 });
+  const [playoffSettings, setPlayoffSettings] = useState<{ mapName: string; targetMagic: number }>({ mapName: '', targetMagic: 8000 });
   const [isPlayoffEditing, setIsPlayoffEditing] = useState<boolean>(false);
 
   const [currentRound, setCurrentRound] = useState<number>(1);
@@ -574,7 +574,7 @@ export default function PennantManager({ players }: PennantManagerProps) {
                           const tableKey = `${currentRound}-${table.tableNumber}`;
                           const isFinished = !!matchScores[tableKey];
                           const isEditing = activeInputKey === tableKey;
-                          const currentSettings = tableSettings[tableKey] || { mapName: '', targetMagic: 10000 };
+                          const currentSettings = tableSettings[tableKey] || { mapName: '', targetMagic: 8000 };
 
                           return (
                             <div key={table.tableNumber} className="bg-slate-950 border border-slate-800 p-5 rounded-xl space-y-4 shadow-lg">
