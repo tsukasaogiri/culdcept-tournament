@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 
 export interface Player {
   userId: string;
+  id?: string;
   name: string;
 }
 
@@ -14,7 +15,6 @@ export interface MatchScoreInputProps {
   players: Player[];
   initialScores?: Record<string, { rank: number; magic: number; score: number }>;
   
-  // 追加: 現在のラウンド数と総ラウンド数
   currentRound?: number;
   totalRounds?: number;
 
@@ -27,7 +27,6 @@ export interface MatchScoreInputProps {
   onUpdateSettings?: (mapName: string, targetMagic: number) => void;
 }
 
-// カルドセプト ビギンズ等の代表的なマップリスト（必要に応じて追加・変更できます）
 const CEPT_BEGINS_MAPS = [
   '古書館',
   'リカドの村',
@@ -71,7 +70,6 @@ export default function MatchScoreInput({
   const [currentMapName, setCurrentMapName] = useState(mapName);
   const [currentTargetMagic, setCurrentTargetMagic] = useState(targetMagic);
 
-  // 個人成績モーダル用のState
   const [selectedPlayerForDetail, setSelectedPlayerForDetail] = useState<string | null>(null);
 
   const matchPlayerCount = players.length;
@@ -82,8 +80,8 @@ export default function MatchScoreInput({
     setCurrentTargetMagic(targetMagic);
   }, [mapName, targetMagic]);
 
-  useEffect(() => {
-    if (initialScores) {
+useEffect(() => {
+    if (initialScores && Object.keys(initialScores).length > 0) {
       const loadedRanks: Record<string, number> = {};
       const loadedMagics: Record<string, number> = {};
       Object.entries(initialScores).forEach(([userId, data]) => {
@@ -100,7 +98,8 @@ export default function MatchScoreInput({
       setMagics(initialMagics);
       setRanks({});
     }
-  }, [initialScores, players, targetMagic]);
+  }, [initialScores, targetMagic, tableNumber, currentRound]); 
+  // ※ players, allRounds, allMatchScores などの配列・オブジェクト型は依存配列から除外します
 
   const handleMapNameChange = (newName: string) => {
     setCurrentMapName(newName);
@@ -174,6 +173,14 @@ export default function MatchScoreInput({
 
     onSave(resultData);
   };
+
+  useEffect(() => {
+  console.log("--- MatchScoreInput デバッグ ---");
+  console.log("Current Round:", currentRound);
+  console.log("All Rounds:", allRounds);
+  console.log("All MatchScores:", allMatchScores);
+  console.log("Players:", players);
+}, [currentRound, allRounds, allMatchScores, players]);
 
   return (
     <div className="w-full max-w-7xl bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-6 shadow-2xl text-slate-100 mx-auto">
@@ -261,7 +268,6 @@ export default function MatchScoreInput({
                 })}
               </div>
 
-              {/* 魔力調整ボタン群 */}
               <div className="flex flex-wrap items-center justify-center gap-1 xl:justify-end w-full xl:w-auto">
                 <button
                   type="button"
@@ -346,15 +352,110 @@ export default function MatchScoreInput({
         </button>
       </div>
 
-      {/* 個人成績モーダル */}
-      {selectedPlayerForDetail && (() => {
-        const targetPlayer = players.find(p => p.userId === selectedPlayerForDetail) || 
-                           (Array.isArray(allStandings) ? allStandings.find((s: any) => s.id === selectedPlayerForDetail) : null);
-        if (!targetPlayer) return null;
+{selectedPlayerForDetail && (() => {
+        const targetPlayer: any = players.find(p => p.userId === selectedPlayerForDetail || p.id === selectedPlayerForDetail) || 
+                                  (Array.isArray(allStandings) ? allStandings.find((s: any) => s.id === selectedPlayerForDetail) : null) ||
+                                  { userId: selectedPlayerForDetail, id: selectedPlayerForDetail, name: 'プレイヤー' };
 
-        const targetId = 'userId' in targetPlayer ? targetPlayer.userId : (targetPlayer as any).id;
-        const targetName = targetPlayer.name;
+        const targetId = targetPlayer.userId || targetPlayer.id || selectedPlayerForDetail;
+        const targetName = targetPlayer.name || 'プレイヤー';
 
+        // 試合データを格納するマップ
+        const collectedMatchesMap = new Map<string, {
+          round: number;
+          tableNumber: number;
+          mapName: string;
+          scores: Record<string, any>;
+          players: any[];
+        }>();
+
+        // 1. allRounds (roundHistories) からベースを作成
+        if (Array.isArray(allRounds)) {
+          allRounds.forEach((h: any) => {
+            if (h && Array.isArray(h.tables)) {
+              h.tables.forEach((t: any) => {
+                if (t && Array.isArray(t.players)) {
+                  const matchKey = `r${h.round}-t${t.tableNumber}`;
+                  collectedMatchesMap.set(matchKey, {
+                    round: Number(h.round) || 1,
+                    tableNumber: Number(t.tableNumber) || 1,
+                    mapName: t.mapName || currentMapName,
+                    scores: {},
+                    players: t.players
+                  });
+                }
+              });
+            }
+          });
+        }
+
+        // 2. allMatchScores (保存済みスコア) をマージ
+        if (allMatchScores) {
+          const matchArray = Array.isArray(allMatchScores) 
+            ? allMatchScores 
+            : Object.values(allMatchScores);
+            
+          matchArray.forEach((m: any) => {
+            if (m) {
+              const rNum = Number(m.round) || 1;
+              const tNum = Number(m.tableNumber) || 1;
+              const matchKey = `r${rNum}-t${tNum}`;
+              if (collectedMatchesMap.has(matchKey)) {
+                const existing = collectedMatchesMap.get(matchKey)!;
+                existing.scores = { ...existing.scores, ...(m.scores || {}) };
+                if (m.mapName) existing.mapName = m.mapName;
+                if (m.players) existing.players = m.players;
+              } else {
+                collectedMatchesMap.set(matchKey, {
+                  round: rNum,
+                  tableNumber: tNum,
+                  mapName: m.mapName || currentMapName,
+                  scores: m.scores || {},
+                  players: m.players || players
+                });
+              }
+            }
+          });
+        }
+
+        // 3. 現在入力中の画面のデータもリアルタイムに反映
+        const currentRoundNum = Number(currentRound) || 1;
+        const currentKey = `r${currentRoundNum}-t${tableNumber}`;
+        
+        const activeScores: Record<string, any> = {};
+        players.forEach(p => {
+          if (ranks[p.userId]) {
+            const r = ranks[p.userId];
+            const m = magics[p.userId] ?? currentTargetMagic;
+            let pts = 0;
+            if (matchPlayerCount === 4) {
+              if (r === 1) pts = 6; else if (r === 2) pts = 4; else if (r === 3) pts = 2; else pts = 0;
+            } else if (matchPlayerCount === 3) {
+              if (r === 1) pts = 6; else if (r === 2) pts = 3; else pts = 0;
+            } else {
+              if (r === 1) pts = 6; else pts = 0;
+            }
+            activeScores[p.userId] = { rank: r, magic: m, score: pts };
+          } else if (initialScores && initialScores[p.userId]) {
+            activeScores[p.userId] = initialScores[p.userId];
+          }
+        });
+
+        if (collectedMatchesMap.has(currentKey)) {
+          const existing = collectedMatchesMap.get(currentKey)!;
+          existing.scores = { ...existing.scores, ...activeScores };
+          existing.mapName = currentMapName;
+        } else {
+          collectedMatchesMap.set(currentKey, {
+            round: currentRoundNum,
+            tableNumber: tableNumber,
+            mapName: currentMapName,
+            scores: activeScores,
+            players: players
+          });
+        }
+
+        // 4. 該当プレイヤーが参加している試合を抽出
         const playerMatches: {
           round: number;
           tableNumber: number;
@@ -365,50 +466,36 @@ export default function MatchScoreInput({
           score: number;
         }[] = [];
 
-        const historiesArray = Array.isArray(allRounds) ? allRounds : [];
+        collectedMatchesMap.forEach((matchInfo) => {
+          const matchPlayers = matchInfo.players && matchInfo.players.length > 0 ? matchInfo.players : players;
+          
+          const isParticipant = matchPlayers.some((tp: any) => String(tp.userId || tp.id) === String(targetId));
+          if (!isParticipant) return;
 
-        historiesArray.forEach((history: { round: number; tables: any[] }) => {
-          const roundNum = history.round;
-          const tablesArray = Array.isArray(history.tables) ? history.tables : [];
+          const myData = matchInfo.scores[targetId];
+          const opponents = matchPlayers
+            .filter((tp: any) => String(tp.userId || tp.id) !== String(targetId))
+            .map((tp: any) => tp.name);
 
-          tablesArray.forEach((table: any) => {
-            if (!table) return;
-            const currentTableNum = table.tableNumber;
-            
-            const matchedResult = Array.isArray(allMatchScores)
-              ? allMatchScores.find((m: any) => m.round === roundNum && m.tableNumber === currentTableNum)
-              : null;
-
-            const tableScores = matchedResult?.scores || {};
-            const tablePlayers = table.players || [];
-            
-            const isParticipating = tablePlayers.some((tp: any) => (tp.userId || tp.id) === targetId);
-
-            if (isParticipating) {
-              const myScoreData = tableScores[targetId] || null;
-              
-              const opponents = tablePlayers
-                .filter((tp: any) => (tp.userId || tp.id) !== targetId)
-                .map((tp: any) => tp.name);
-
-              playerMatches.push({
-                round: roundNum,
-                tableNumber: currentTableNum,
-                mapName: table.mapName || ``,
-                opponents,
-                rank: myScoreData ? myScoreData.rank : 0,
-                magic: myScoreData ? myScoreData.magic : 0,
-                score: myScoreData ? myScoreData.score : 0,
-              });
-            }
+          playerMatches.push({
+            round: matchInfo.round,
+            tableNumber: matchInfo.tableNumber,
+            mapName: matchInfo.mapName || 'マップ未設定',
+            opponents,
+            rank: myData ? Number(myData.rank) || 0 : 0,
+            magic: myData ? Number(myData.magic ?? myData.totalMagic) || 0 : 0,
+            score: myData ? Number(myData.score) || 0 : 0,
           });
         });
 
-        const matchesPlayed = playerMatches.filter(m => m.rank > 0).length;
+        playerMatches.sort((a, b) => a.round - b.round || a.tableNumber - b.tableNumber);
+
+        const matchesPlayed = playerMatches.length;
+        const scoredMatches = playerMatches.filter(m => m.rank > 0);
         const totalMagic = playerMatches.reduce((acc, m) => acc + m.magic, 0);
-        const totalScore = playerMatches.reduce((acc, m) => acc + m.score, 0);
-        const avgRank = matchesPlayed > 0 
-          ? (playerMatches.filter(m => m.rank > 0).reduce((acc, m) => acc + m.rank, 0) / matchesPlayed).toFixed(2)
+        const totalScore = scoredMatches.reduce((acc, m) => acc + m.score, 0);
+        const avgRank = scoredMatches.length > 0 
+          ? (scoredMatches.reduce((acc, m) => acc + m.rank, 0) / scoredMatches.length).toFixed(2)
           : '-';
 
         return (
@@ -428,7 +515,6 @@ export default function MatchScoreInput({
                 </button>
               </div>
 
-              {/* スタッツ概要 */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
                   <div className="text-xs text-slate-400">総試合数</div>
@@ -448,7 +534,6 @@ export default function MatchScoreInput({
                 </div>
               </div>
 
-              {/* 対戦履歴リスト */}
               <div className="space-y-3">
                 <h4 className="text-xs font-bold text-slate-300 tracking-wider uppercase">対戦ラウンド履歴</h4>
                 <div className="space-y-2">
@@ -461,7 +546,7 @@ export default function MatchScoreInput({
                               R {m.round}
                             </span>
                             <span className="text-xs text-slate-400">第 {m.tableNumber} 卓</span>
-                            <span className="text-xs text-slate-500">（マップ: {m.mapName}）</span>
+                            <span className="text-xs text-slate-500">（マップ: {m.mapName || '未設定'}）</span>
                           </div>
                           <div className="text-xs text-slate-300">
                             対戦相手: <span className="text-slate-400">{m.opponents.join(', ') || 'なし'}</span>

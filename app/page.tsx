@@ -31,7 +31,6 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<'register' | 'play'>('register');
-  
   const [tournamentMode, setTournamentMode] = useState<'swiss' | 'round_robin' | 'pennant'>('swiss');
   
   const [totalRounds, setTotalRounds] = useState<number>(3);
@@ -110,29 +109,19 @@ export default function Home() {
     localStorage.setItem('culdcept_is_playoff', JSON.stringify(isPlayoff));
   }, [isMounted, step, players, tables, currentRound, matchResults, roundHistories, viewingRound, roundParticipants, tournamentMode, totalRounds, enablePlayoff, isPlayoff]);
 
-const handleExportData = () => {
-    // スイスドロー等のローカルストレージデータ（catan_ または culdcept_ で始まるキー）を収集
+  const handleExportData = () => {
     const swissStorage: Record<string, string> = {};
     const keysToExport = [
-      'catan_step',
-      'catan_players',
-      'catan_tables',
-      'catan_round',
-      'catan_results',
-      'catan_histories',
-      'catan_viewing_round',
-      'culdcept_round_participants',
-      'culdcept_tournament_mode',
-      'culdcept_total_rounds',
-      'culdcept_enable_playoff',
-      'culdcept_is_playoff',
+      'catan_step', 'catan_players', 'catan_tables', 'catan_round',
+      'catan_results', 'catan_histories', 'catan_viewing_round',
+      'culdcept_round_participants', 'culdcept_tournament_mode',
+      'culdcept_total_rounds', 'culdcept_enable_playoff', 'culdcept_is_playoff',
     ];
     keysToExport.forEach(k => {
       const val = localStorage.getItem(k);
       if (val) swissStorage[k] = val;
     });
 
-    // ペナントレースのローカルストレージデータを収集
     const pennantDataKeys = Object.keys(localStorage).filter(k => k.startsWith('culdcept_pennant_manager_'));
     const pennantStorage: Record<string, string> = {};
     pennantDataKeys.forEach(k => {
@@ -140,7 +129,6 @@ const handleExportData = () => {
       if (val) pennantStorage[k] = val;
     });
 
-    // リーグ戦のローカルストレージデータを収集
     const roundRobinDataKeys = Object.keys(localStorage).filter(k => k.startsWith('culdcept_round_robin_'));
     const roundRobinStorage: Record<string, string> = {};
     roundRobinDataKeys.forEach(k => {
@@ -149,34 +137,19 @@ const handleExportData = () => {
     });
 
     const tournamentData = {
-      step,
-      players,
-      tables,
-      currentRound,
-      matchResults,
-      roundHistories,
-      viewingRound,
-      roundParticipants,
-      tournamentMode,
-      totalRounds,
-      enablePlayoff,
-      isPlayoff,
-      swissStorage,        // 追加: スイスドロー等の保存データ一式
-      pennantStorage,      
-      roundRobinStorage,   
-      version: 15,
-      updatedAt: new Date().toISOString(),
+      step, players, tables, currentRound, matchResults, roundHistories,
+      viewingRound, roundParticipants, tournamentMode, totalRounds,
+      enablePlayoff, isPlayoff, swissStorage, pennantStorage, roundRobinStorage,
+      version: 15, updatedAt: new Date().toISOString(),
     };
 
     const blob = new Blob([JSON.stringify(tournamentData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    
     const dateStr = new Date().toISOString().slice(0, 10);
     link.href = url;
     link.download = `culdcept-tournament-${dateStr}.json`;
     link.click();
-    
     URL.revokeObjectURL(url);
   };
 
@@ -191,28 +164,22 @@ const handleExportData = () => {
         const data = JSON.parse(content);
 
         if (data.players && Array.isArray(data.players)) {
-          // スイスドロー等のストレージデータをlocalStorageに復元
           if (data.swissStorage) {
             Object.entries(data.swissStorage).forEach(([key, value]) => {
               localStorage.setItem(key, value as string);
             });
           }
-
-          // ペナントレースのデータをlocalStorageに復元
           if (data.pennantStorage) {
             Object.entries(data.pennantStorage).forEach(([key, value]) => {
               localStorage.setItem(key, value as string);
             });
           }
-
-          // リーグ戦のデータをlocalStorageに復元
           if (data.roundRobinStorage) {
             Object.entries(data.roundRobinStorage).forEach(([key, value]) => {
               localStorage.setItem(key, value as string);
             });
           }
 
-          // ステートの直接復元
           setPlayers(data.players);
           if (data.step) setStep(data.step);
           if (data.tables) setTables(data.tables);
@@ -230,7 +197,7 @@ const handleExportData = () => {
           if (data.isPlayoff !== undefined) setIsPlayoff(data.isPlayoff);
 
           alert('大会データと試合結果を正常に復元しました！');
-          window.location.reload(); // 確実に反映させるためにリロード
+          window.location.reload();
         } else {
           alert('ファイルの形式が正しくありません。');
         }
@@ -245,9 +212,7 @@ const handleExportData = () => {
     reader.readAsText(file);
   };
 
-  if (!isMounted) {
-    return null;
-  }
+  if (!isMounted) return null;
 
   const generateSwissTables = (roundNum: number, participantIds: string[]) => {
     const activePlayers = players.filter(p => participantIds.includes(p.id));
@@ -802,9 +767,10 @@ const handleExportData = () => {
                       initialScores={existingMatch?.scores}
                       onSave={(scores) => handleSaveTableScores(table.tableNumber, scores)}
                       onUpdateSettings={(newMap, newTarget) => handleUpdateTableSettings(table.tableNumber, newMap, newTarget)}
-                      allRounds={roundHistories}
-                      allMatchScores={matchResults}
-                      allTableSettings={viewingTables}
+                      allRounds={[...roundHistories]}
+                      allMatchScores={[...matchResults]}
+                      allTableSettings={[...viewingTables]}
+                      currentRound={viewingRound}
                     />
                   );
                 })}

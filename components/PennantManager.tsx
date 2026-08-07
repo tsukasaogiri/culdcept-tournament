@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Player } from './PlayerManager';
 import MatchScoreInput from './MatchScoreInput';
+import PennantPlayerDetailModal, { PennantMatchRecord } from '@/components/PennantPlayerDetailModal';
 
 interface PennantManagerProps {
   players: Player[];
@@ -54,6 +55,9 @@ export default function PennantManager({ players }: PennantManagerProps) {
   const [isGenerated, setIsGenerated] = useState(false);
   const [activeTab, setActiveTab] = useState<'schedule' | 'standings'>('schedule');
   const [isInitialized, setIsInitialized] = useState(false);
+
+  // 個人成績詳細モーダル用のステート
+  const [selectedPlayerForDetail, setSelectedPlayerForDetail] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     const savedData = localStorage.getItem(storageKey);
@@ -293,7 +297,6 @@ export default function PennantManager({ players }: PennantManagerProps) {
     const generatedRounds: RoundRobinTable[][] = [];
     const baseRoundsCount = rawMatrix.length;
 
-    // 指定されたループ回数（周回数）だけスケジュールを繰り返して生成
     for (let l = 0; l < loopCount; l++) {
       rawMatrix.forEach((roundTablesData, rIdx) => {
         const absoluteRoundNum = l * baseRoundsCount + (rIdx + 1);
@@ -326,23 +329,32 @@ export default function PennantManager({ players }: PennantManagerProps) {
 
   const handleSaveScores = (key: string, scores: Record<string, MatchResultData>) => {
     const adjustedScores: Record<string, MatchResultData> = {};
-    Object.entries(scores).forEach(([userId, data]) => {
+    
+    Object.entries(scores).forEach(([userId, data]: [string, any]) => {
+      const rank = Number(data.rank) || 4;
+      const magic = Number(data.totalMagic ?? data.magic ?? 0);
+      
       let assignedScore = 0;
-      if (data.rank === 1) assignedScore = 3;
-      else if (data.rank === 2) assignedScore = 2;
-      else if (data.rank === 3) assignedScore = 1;
-      else if (data.rank === 4) assignedScore = 0;
+      if (rank === 1) assignedScore = 3;
+      else if (rank === 2) assignedScore = 2;
+      else if (rank === 3) assignedScore = 1;
+      else if (rank === 4) assignedScore = 0;
 
       adjustedScores[userId] = {
-        ...data,
+        rank,
+        magic,
         score: assignedScore,
       };
     });
 
-    setMatchScores(prev => ({
-      ...prev,
-      [key]: adjustedScores,
-    }));
+    setMatchScores(prev => {
+      const updated = {
+        ...prev,
+        [key]: adjustedScores,
+      };
+      return updated;
+    });
+    
     setActiveInputKey(null);
   };
 
@@ -398,17 +410,25 @@ export default function PennantManager({ players }: PennantManagerProps) {
       };
     });
 
-    Object.values(matchScores).forEach(tableResult => {
+    Object.entries(matchScores).forEach(([tableKey, tableResult]) => {
+      if (!tableResult) return;
       Object.entries(tableResult).forEach(([userId, data]) => {
-        if (statsMap[userId]) {
-          statsMap[userId].matchesPlayed += 1;
-          statsMap[userId].totalScore += data.score;
-          statsMap[userId].totalMagic += data.magic;
+        let targetId = userId;
+        if (!statsMap[targetId]) {
+          const found = Object.keys(statsMap).find(id => String(id) === String(userId));
+          if (found) targetId = found;
+        }
 
-          if (data.rank === 1) statsMap[userId].firsts += 1;
-          else if (data.rank === 2) statsMap[userId].seconds += 1;
-          else if (data.rank === 3) statsMap[userId].thirds += 1;
-          else if (data.rank === 4) statsMap[userId].fourths += 1;
+        if (targetId && statsMap[targetId] && data) {
+          statsMap[targetId].matchesPlayed += 1;
+          statsMap[targetId].totalScore += Number(data.score) || 0;
+          statsMap[targetId].totalMagic += Number(data.magic) || 0;
+
+          const rank = Number(data.rank);
+          if (rank === 1) statsMap[targetId].firsts += 1;
+          else if (rank === 2) statsMap[targetId].seconds += 1;
+          else if (rank === 3) statsMap[targetId].thirds += 1;
+          else if (rank === 4) statsMap[targetId].fourths += 1;
         }
       });
     });
@@ -419,6 +439,39 @@ export default function PennantManager({ players }: PennantManagerProps) {
       }
       return b.totalMagic - a.totalMagic;
     });
+  };
+
+  // プレイヤーの全試合履歴データを抽出する関数
+  const getPlayerMatches = (userId: string): PennantMatchRecord[] => {
+    const records: PennantMatchRecord[] = [];
+
+    rounds.forEach((roundTables) => {
+      roundTables.forEach((table) => {
+        const tableKey = `${table.round}-${table.tableNumber}`;
+        const tableResult = matchScores[tableKey];
+        
+        const isParticipating = table.players.some(p => String(p.userId) === String(userId));
+        if (isParticipating) {
+          const pScore = tableResult?.[userId];
+          const opponents = table.players
+            .filter(p => String(p.userId) !== String(userId))
+            .map(p => p.name);
+          const currentSettings = tableSettings[tableKey];
+
+          records.push({
+            round: table.round,
+            tableNumber: table.tableNumber,
+            mapName: currentSettings?.mapName || '',
+            opponents,
+            rank: pScore ? pScore.rank : 0,
+            magic: pScore ? pScore.magic : 0,
+            score: pScore ? pScore.score : 0,
+          });
+        }
+      });
+    });
+
+    return records;
   };
 
   const standings = calculateStandings();
@@ -664,7 +717,15 @@ export default function PennantManager({ players }: PennantManagerProps) {
                               <td className="py-3 font-bold text-slate-300">
                                 {idx === 0 ? '🥇 1位' : idx === 1 ? '🥈 2位' : idx === 2 ? '🥉 3位' : `${idx + 1}位`}
                               </td>
-                              <td className="py-3 font-semibold text-slate-100">{p.name}</td>
+                              <td className="py-3 font-semibold text-slate-100">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedPlayerForDetail({ id: p.id, name: p.name })}
+                                  className="text-emerald-300 hover:text-emerald-200 hover:underline cursor-pointer text-left font-semibold"
+                                >
+                                  {p.name} 🔍
+                                </button>
+                              </td>
                               <td className="py-3 text-center text-slate-300">{p.matchesPlayed}</td>
                               <td className="py-3 text-center text-slate-300">
                                 <span className="text-amber-400">{p.firsts}</span> /{' '}
@@ -783,6 +844,15 @@ export default function PennantManager({ players }: PennantManagerProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* 選択されたプレイヤーの個人成績詳細モーダル */}
+      {selectedPlayerForDetail && (
+        <PennantPlayerDetailModal
+          playerName={selectedPlayerForDetail.name}
+          matches={getPlayerMatches(selectedPlayerForDetail.id)}
+          onClose={() => setSelectedPlayerForDetail(null)}
+        />
+      )}
     </div>
   );
 }
